@@ -16,10 +16,10 @@ A prediction app that shows cart positions and when one will reach your stop, bu
 ## Repository
 - `docs/` checkpoint write-ups (CP2 findings, CP3 define, CP4 ideate, observation summary)
 - `deck/` project presentation (`.pptx`) and its build script
-- `prototype/` map assets and tools for the cart-tracker app (work in progress): LPU campus map, hand-traced road network (`net.json`), road-extraction scripts
+- `prototype/` the cart-tracker app (`index.html`, open it in a browser or on a phone) with its map data and tools; see `prototype/README.md`
 
-## Prototype plan
-Preset routes A and B; carts move along campus roads (never through buildings); empty carts shown in full colour, full or opposite-direction carts dimmed; tap the map to pick a destination; GPS "where am I"; ETA estimated from collected timing data. Runs on a phone as a web app over USB debugging.
+## Prototype
+Preset routes A and B; carts move along campus roads (never through buildings); empty carts shown in full colour, full or opposite-direction carts dimmed; tap the map to pick a destination; GPS "where am I"; ETA estimated from collected timing data. Runs on a phone as a web app over USB debugging. ETAs are simulated from our timing data, not live cart data.
 
 ## AI-use statement
 We used an AI assistant (Claude by Anthropic) to help draft documents, the presentation, the starter idea list in CP4 and to write prototype code. Interview data, observations and decisions are the team's own; AI-suggested ideas are reviewed and edited by the team, and unfilled parts of the documents are marked as still to do.
