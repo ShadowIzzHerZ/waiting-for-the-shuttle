@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Draw paths</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#222;font-family:system-ui,sans-serif}
+#bar{position:fixed;left:0;right:0;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:6px;padding:6px;background:#0F3D3E}
+button{border:0;border-radius:8px;padding:9px 12px;font:600 14px system-ui;background:#fff;color:#10302f}
+button.on{background:#F2A541}
+#c{position:absolute;left:0;top:0;width:100%;height:100%;touch-action:none}
+#msg{position:fixed;left:8px;bottom:10px;z-index:2;background:#000b;color:#fff;font-size:13px;padding:6px 10px;border-radius:12px}
+</style></head><body>
+<div id="bar">
+ <button data-m="move" class="on">Move</button><button data-m="draw">Draw path</button>
+ <button data-m="A">Mark A</button><button data-m="B">Mark B</button>
+ <button id="undo">Undo</button><button id="clear">Clear</button><button id="save">Save</button>
+</div>
+<canvas id="c"></canvas><div id="msg"></div>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d'),img=new Image();img.src='map/lpu.jpg';
+let D={A:null,B:null,paths:[]};try{D=JSON.parse(localStorage.getItem('draw'))||D}catch(e){}
+let mode='move',v={s:1,x:0,y:0},cur=null,P=new Map(),pinch=null,hist=[];
+const msg=t=>document.getElementById('msg').textContent=t;
+const W=()=>cv.width=innerWidth,H=()=>cv.height=innerHeight;
+function fit(){W();H();v.s=Math.min(cv.width/1080,(cv.height-60)/744);v.x=(cv.width-1080*v.s)/2;v.y=60+(cv.height-60-744*v.s)/2;draw()}
+const toImg=(px,py)=>[(px-v.x)/v.s,(py-v.y)/v.s];
+function pin(p,c,l){g.beginPath();g.arc(p[0],p[1],14/v.s,0,7);g.fillStyle=c;g.fill();g.lineWidth=3/v.s;g.strokeStyle='#fff';g.stroke();
+ g.fillStyle='#fff';g.font='bold '+16/v.s+'px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(l,p[0],p[1]+1/v.s)}
+function draw(){g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);g.setTransform(v.s,0,0,v.s,v.x,v.y);
+ if(img.complete)g.drawImage(img,0,0);g.lineWidth=4/v.s;g.lineJoin=g.lineCap='round';g.strokeStyle='#e11d48';
+ for(const p of [...D.paths,...(cur?[cur]:[])]){g.beginPath();p.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.stroke()}
+ if(D.A)pin(D.A,'#12924a','A');if(D.B)pin(D.B,'#2563eb','B')}
+img.onload=fit;onresize=fit;
+const store=()=>{try{localStorage.setItem('draw',JSON.stringify(D))}catch(e){}};
+cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);
+ if(P.size==2){cur=null;pinch=null;return}
+ const q=toImg(e.clientX,e.clientY);
+ if(mode=='draw')cur=[q];else if(mode=='A'||mode=='B'){hist.push(JSON.stringify(D));D[mode]=q.map(Math.round);store();msg(mode+' set')}
+ draw()};
+cv.onpointermove=e=>{if(!P.has(e.pointerId))return;const o=P.get(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);
+ if(P.size==2){const[a,b]=[...P.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  if(pinch){const k=d/pinch.d,s=Math.min(8,Math.max(.3,v.s*k));v.x=m[0]-(m[0]-v.x)*s/v.s+(m[0]-pinch.m[0]);v.y=m[1]-(m[1]-v.y)*s/v.s+(m[1]-pinch.m[1]);v.s=s}
+  pinch={d,m};draw();return}
+ if(mode=='draw'&&cur){const q=toImg(e.clientX,e.clientY),l=cur[cur.length-1];if(Math.hypot(q[0]-l[0],q[1]-l[1])>2)cur.push(q)}
+ else if(mode=='move'){v.x+=e.clientX-o[0];v.y+=e.clientY-o[1]}
+ draw()};
+cv.onpointerup=cv.onpointercancel=e=>{P.delete(e.pointerId);pinch=null;
+ if(cur&&cur.length>1){hist.push(JSON.stringify(D));D.paths.push(cur.map(q=>q.map(Math.round)));store();msg('paths: '+D.paths.length)}
+ cur=null;draw()};
+cv.onwheel=e=>{e.preventDefault();const s=Math.min(8,Math.max(.3,v.s*(e.deltaY<0?1.15:1/1.15)));v.x=e.clientX-(e.clientX-v.x)*s/v.s;v.y=e.clientY-(e.clientY-v.y)*s/v.s;v.s=s;draw()};
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('on',x==b));
+ msg({move:'drag pans, wheel or 2 fingers zoom',draw:'draw a path with one finger (2 fingers still zoom)',A:'tap to place A',B:'tap to place B'}[mode])});
+undo.onclick=()=>{if(hist.length){D=JSON.parse(hist.pop());store();draw()}};
+clear.onclick=()=>{if(confirm('Clear everything?')){hist.push(JSON.stringify(D));D={A:null,B:null,paths:[]};store();draw()}};
+save.onclick=async()=>{try{const r=await fetch('/save',{method:'POST',body:JSON.stringify(D)});msg(r.ok?'Saved. Tell Claude.':'Save failed '+r.status)}
+ catch(e){try{await navigator.clipboard.writeText(JSON.stringify(D));msg('No server: JSON copied, paste it to Claude')}catch(_){msg('Save failed')}}};
+</script></body></html>

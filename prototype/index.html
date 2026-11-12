@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0F3D3E">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png">
 <title>Cart Tracker - P05</title>
 <style>
 :root{--ink:#10302f;--teal:#0F3D3E;--amber:#E08A00;--green:#12924a;--blue:#2563eb;--bg:#f6f4ee;--mute:#5d6b6a}
@@ -372,5 +373,6 @@ $('gps').onclick=()=>{
   },err=>fail('Could not get GPS ('+err.message+').'),{enableHighAccuracy:true,timeout:10000});
 };
 </script>
+<script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js")</script>
 </body>
 </html>
