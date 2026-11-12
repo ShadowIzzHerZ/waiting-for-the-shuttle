@@ -13,13 +13,13 @@ button.on{background:#F2A541}
 </style></head><body>
 <div id="bar">
  <button data-m="move" class="on">Move</button><button data-m="draw">Draw path</button>
- <button data-m="A">Mark A</button><button data-m="B">Mark B</button>
+ <button data-m="A">Mark A</button><button data-m="B">Mark B</button><button data-m="V">Mark 54</button>
  <button id="undo">Undo</button><button id="clear">Clear</button><button id="save">Save</button>
 </div>
 <canvas id="c"></canvas><div id="msg"></div>
 <script>
 const cv=document.getElementById('c'),g=cv.getContext('2d'),img=new Image();img.src='map/lpu.jpg';
-let D={A:null,B:null,paths:[]};try{D=JSON.parse(localStorage.getItem('draw'))||D}catch(e){}
+let D={A:null,B:null,V:null,paths:[]};try{D=JSON.parse(localStorage.getItem('draw'))||D}catch(e){}
 let mode='move',v={s:1,x:0,y:0},cur=null,P=new Map(),pinch=null,hist=[];
 const msg=t=>document.getElementById('msg').textContent=t;
 const W=()=>cv.width=innerWidth,H=()=>cv.height=innerHeight;
@@ -30,13 +30,13 @@ function pin(p,c,l){g.beginPath();g.arc(p[0],p[1],14/v.s,0,7);g.fillStyle=c;g.fi
 function draw(){g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);g.setTransform(v.s,0,0,v.s,v.x,v.y);
  if(img.complete)g.drawImage(img,0,0);g.lineWidth=4/v.s;g.lineJoin=g.lineCap='round';g.strokeStyle='#e11d48';
  for(const p of [...D.paths,...(cur?[cur]:[])]){g.beginPath();p.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.stroke()}
- if(D.A)pin(D.A,'#12924a','A');if(D.B)pin(D.B,'#2563eb','B')}
+ if(D.A)pin(D.A,'#12924a','A');if(D.B)pin(D.B,'#2563eb','B');if(D.V)pin(D.V,'#E08A00','54')}
 img.onload=fit;onresize=fit;
 const store=()=>{try{localStorage.setItem('draw',JSON.stringify(D))}catch(e){}};
 cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);
  if(P.size==2){cur=null;pinch=null;return}
  const q=toImg(e.clientX,e.clientY);
- if(mode=='draw')cur=[q];else if(mode=='A'||mode=='B'){hist.push(JSON.stringify(D));D[mode]=q.map(Math.round);store();msg(mode+' set')}
+ if(mode=='draw')cur=[q];else if(mode=='A'||mode=='B'||mode=='V'){hist.push(JSON.stringify(D));D[mode]=q.map(Math.round);store();msg((mode=='V'?'54':mode)+' set')}
  draw()};
 cv.onpointermove=e=>{if(!P.has(e.pointerId))return;const o=P.get(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);
  if(P.size==2){const[a,b]=[...P.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
@@ -50,9 +50,9 @@ cv.onpointerup=cv.onpointercancel=e=>{P.delete(e.pointerId);pinch=null;
  cur=null;draw()};
 cv.onwheel=e=>{e.preventDefault();const s=Math.min(8,Math.max(.3,v.s*(e.deltaY<0?1.15:1/1.15)));v.x=e.clientX-(e.clientX-v.x)*s/v.s;v.y=e.clientY-(e.clientY-v.y)*s/v.s;v.s=s;draw()};
 document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('on',x==b));
- msg({move:'drag pans, wheel or 2 fingers zoom',draw:'draw a path with one finger (2 fingers still zoom)',A:'tap to place A',B:'tap to place B'}[mode])});
+ msg({move:'drag pans, wheel or 2 fingers zoom',draw:'draw a path with one finger (2 fingers still zoom)',A:'tap to place A',B:'tap to place B',V:'tap to place stop 54 (via point, not an end)'}[mode])});
 undo.onclick=()=>{if(hist.length){D=JSON.parse(hist.pop());store();draw()}};
-clear.onclick=()=>{if(confirm('Clear everything?')){hist.push(JSON.stringify(D));D={A:null,B:null,paths:[]};store();draw()}};
+clear.onclick=()=>{if(confirm('Clear everything?')){hist.push(JSON.stringify(D));D={A:null,B:null,V:null,paths:[]};store();draw()}};
 save.onclick=async()=>{try{const r=await fetch('/save',{method:'POST',body:JSON.stringify(D)});msg(r.ok?'Saved. Tell Claude.':'Save failed '+r.status)}
  catch(e){try{await navigator.clipboard.writeText(JSON.stringify(D));msg('No server: JSON copied, paste it to Claude')}catch(_){msg('Save failed')}}};
 </script></body></html>
