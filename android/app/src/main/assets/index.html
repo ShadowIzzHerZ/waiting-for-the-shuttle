@@ -133,7 +133,7 @@ function path(s,t,wf){const {P}=dijkstra(s,wf);const r=[t];while(r[0]!==s){if(P[
 // shortcut: paths join only at their ends (to the nearest point of another path), not where two paths cross mid-way; split the path at the crossing when drawing
 function fromDrawing(d){
   if(!d||!d.A||!d.B||!Array.isArray(d.paths))return null;
-  const N={},E=[],ids=[],ps=d.paths.filter(p=>p.length>1);
+  const N={},E=[],ids=[],ps=d.paths.filter(p=>p.length>1).map(p=>p.filter((q,j)=>j===0||j===p.length-1||Math.hypot(q[0]-p.k[0],q[1]-p.k[1])>=6?(p.k=q,true):false));
   ps.forEach((p,i)=>p.forEach((q,j)=>{const k='p'+i+'_'+j;N[k]=q;ids.push([k,i]);if(j)E.push(['p'+i+'_'+(j-1),k]);}));
   const near=(q,skip)=>{let b=null,bd=Infinity;ids.forEach(([k,i])=>{const dd=Math.hypot(N[k][0]-q[0],N[k][1]-q[1]);if(i!==skip&&dd<bd){bd=dd;b=k}});return [b,bd];};
   ps.forEach((p,i)=>[0,p.length-1].forEach(j=>{const [k,dd]=near(p[j],i);if(dd<JOIN)E.push(['p'+i+'_'+j,k]);}));
@@ -269,7 +269,7 @@ const cv=$('c'),ctx=cv.getContext('2d'),wrap=$('mapwrap');
 const img=new Image();img.src='data:image/jpeg;base64,'+DATA.img;
 const IW=820,IH=744;let view={s:1,x:0,y:0},dpr=1,W=0,H=0,t0=performance.now(),touched=false;
 const BB=(()=>{let x0=1e9,y0=1e9,x1=0,y1=0;NODES.forEach(k=>{x0=Math.min(x0,N[k][0]);y0=Math.min(y0,N[k][1]);x1=Math.max(x1,N[k][0]);y1=Math.max(y1,N[k][1]);});return {x0:x0-30,y0:y0-34,x1:x1+30,y1:y1+34};})();
-function size(){const r=wrap.getBoundingClientRect();dpr=Math.min(3,window.devicePixelRatio||1);const first=!W;
+function size(){const r=wrap.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);const first=!W;
   if(r.width<2||r.height<2)return;
   if(!first){view.x+=(r.width-W)/2;view.y+=(r.height-H)/2;}
   W=r.width;H=r.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);if(first||!touched)fit();else clamp();}
@@ -287,7 +287,7 @@ function text(t,x,y,col,px,align){ctx.font='bold '+(px||12)+'px Calibri,"Segoe U
   ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=3.5;ctx.strokeText(t,x,y);ctx.fillStyle=col;ctx.fillText(t,x,y);}
 function drawRoads(){ // faint overlay of the cart roads so it is clear where you can tap
   ctx.save();ctx.lineCap='round';ctx.strokeStyle='#ffffff';ctx.globalAlpha=.4;ctx.lineWidth=Math.max(1.5,2.2*view.s);
-  E.forEach(e=>{ctx.setLineDash(e[2]?[4,5]:[]);ctx.beginPath();ctx.moveTo(SX(N[e[0]][0]),SY(N[e[0]][1]));ctx.lineTo(SX(N[e[1]][0]),SY(N[e[1]][1]));ctx.stroke();});
+  [0,1].forEach(dash=>{ctx.setLineDash(dash?[4,5]:[]);ctx.beginPath();E.forEach(e=>{if(!!e[2]==!!dash){ctx.moveTo(SX(N[e[0]][0]),SY(N[e[0]][1]));ctx.lineTo(SX(N[e[1]][0]),SY(N[e[1]][1]));}});ctx.stroke();});
   ctx.restore();
 }
 function drawCart(c,now){
@@ -296,8 +296,7 @@ function drawCart(c,now){
   ctx.save();ctx.translate(x,y);
   if(c.flash>0){ctx.globalAlpha=c.flash*.8;ctx.strokeStyle='#E08A00';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(0,0,(1-c.flash)*22+8,0,7);ctx.stroke();}
   ctx.rotate(p.ang);ctx.globalAlpha=on?1:.5;
-  if(on){ctx.shadowColor='#0006';ctx.shadowBlur=5;ctx.shadowOffsetY=1;}
-  rr(-L/2,-Wd/2,L,Wd,Wd*.4);ctx.fillStyle=c.full?'#E08A00':'#12924a';ctx.fill();ctx.shadowColor='transparent';
+  rr(-L/2,-Wd/2,L,Wd,Wd*.4);ctx.fillStyle=c.full?'#E08A00':'#12924a';ctx.fill();
   ctx.lineWidth=on?2.2:1.2;ctx.strokeStyle='#fff';ctx.stroke();
   ctx.fillStyle='#fff';ctx.globalAlpha*=.95;ctx.beginPath();ctx.moveTo(L/2-2.5*k,0);ctx.lineTo(L/2-7*k,-Wd*.3);ctx.lineTo(L/2-7*k,Wd*.3);ctx.fill();
   ctx.restore();
@@ -318,6 +317,7 @@ function drawEnds(){
 }
 let lastEval=0;
 function frame(now){
+  requestAnimationFrame(frame);if(now-t0<30)return;
   const dt=Math.min(0.1,(now-t0)/1000);t0=now;
   if(!paused){
     const sd=dt*SPEEDS[spi];simClock+=sd;
@@ -328,7 +328,6 @@ function frame(now){
   }
   if(now-lastEval>200){update();lastEval=now;}
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-  ctx.imageSmoothingQuality='high';
   if(img.complete&&img.naturalWidth)ctx.drawImage(img,view.x,view.y,IW*view.s,IH*view.s);
   drawRoads();
   if(dest&&best&&best.dd!==null){ // the stretch the next empty cart will drive from you to your destination
@@ -341,7 +340,6 @@ function frame(now){
   if(dest)pin(dest,'#dc2626','Destination');
   pin(me,'#2563eb','You');
   $('clock').textContent=paused?'Paused':'Sim clock '+mmss(simClock);
-  requestAnimationFrame(frame);
 }
 setMe(snap(...(N.J4||N[mainPath[mainPath.length>>1]])));if(netNote)toast(netNote,5000);
 requestAnimationFrame(frame);
