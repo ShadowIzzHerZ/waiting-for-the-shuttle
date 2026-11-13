@@ -14,21 +14,23 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--line);ba
 button:active{background:#e6eae7}
 button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #app{display:flex;flex-direction:column;height:100%;max-width:560px;margin:0 auto;background:var(--surface)}
-header{flex:none;display:flex;align-items:baseline;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+header{flex:none;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;border-bottom:1px solid var(--line)}
+header button{border:0;height:36px;min-width:48px;padding:0 8px;color:var(--ink2);font-variant-numeric:tabular-nums}
 header b{font-size:18px;font-weight:600}
-#clock{margin-left:auto;font-size:14px;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
-#mapwrap{flex:1;min-height:120px;position:relative;overflow:hidden;touch-action:none;background:#f3e6a8;user-select:none;-webkit-user-select:none}
-canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
-#tools{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
-#tools button{border:0;border-radius:0;height:44px;min-width:64px;padding:0 12px;font-variant-numeric:tabular-nums}
-#tools button+button{border-top:1px solid var(--line)}
-#legend{position:absolute;left:12px;bottom:12px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--ink2);pointer-events:none}
-#legend span{display:flex;align-items:center;gap:8px;height:20px}
-#legend i{flex:none;width:16px;height:8px;border-radius:4px}
-#toast{position:absolute;left:12px;right:88px;top:12px;background:var(--ink);color:#fff;font-size:14px;padding:8px 12px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none}
+#clock{margin-right:auto;font-size:14px;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
+#mapwrap{flex:1;min-height:120px;position:relative;overflow:hidden;touch-action:none;background:#f8f1cf;user-select:none;-webkit-user-select:none}
+#c{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+#tools{position:absolute;right:12px;top:12px}
+#tools button{display:grid;place-items:center;width:44px;height:44px;padding:0}
+#toast{position:absolute;left:12px;right:68px;top:12px;background:var(--ink);color:#fff;font-size:14px;padding:8px 12px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.on{opacity:1}
 #sheet{flex:none;padding:16px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;flex-direction:column}
-#next{display:flex;align-items:center;gap:16px;min-height:56px;margin-bottom:12px}
+#next{display:flex;align-items:center;gap:16px;min-height:56px}
+#strip{display:block;width:100%;height:56px;margin:8px 0 4px}
+#key{display:flex;gap:16px;font-size:12px;color:var(--ink3);padding-bottom:12px}
+#key span{display:flex;align-items:center;gap:6px}
+#key i{width:10px;height:10px;border-radius:50%;background:#12924a}
+#key i.f{background:none;border:2px solid #E08A00}
 #cd{font-size:48px;font-weight:500;line-height:1;color:var(--go);font-variant-numeric:tabular-nums;min-width:120px}
 #next.none #cd{color:var(--ink3)}
 #nt{font-size:14px;font-weight:500}
@@ -41,14 +43,15 @@ canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 #trip.none #dl{color:var(--ink2)}
 .row button{flex:none;height:36px;padding:0 12px}
 #trip.none #clear{display:none}
-#list{list-style:none;margin:0;padding:0;font-size:14px;min-height:64px;border-top:1px solid var(--line)}
+#list{display:none;list-style:none;margin:0;padding:0;font-size:14px;min-height:64px;border-top:1px solid var(--line)}
+@media (min-height:800px){#list{display:block}}
 #list li{display:flex;align-items:center;gap:8px;height:32px;font-variant-numeric:tabular-nums}
 #list li b{margin-left:auto;font-weight:500}
 #list li.f{color:var(--ink3)}
 .tag{font-size:13px;color:var(--go)}
 .tag.n{color:var(--full)}
 #foot{font-size:12px;color:var(--ink3);padding-top:8px;border-top:1px solid var(--line)}
-@media (max-height:640px){#list,#legend{display:none}#cd{font-size:40px}}
+@media (max-height:640px){#key{display:none}#cd{font-size:40px}}
 @media (orientation:landscape) and (max-height:520px){
   #app{display:grid;grid-template-columns:1fr 320px;grid-template-rows:auto 1fr;max-width:none}
   header{grid-column:1/3}
@@ -58,23 +61,16 @@ canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 </head>
 <body>
 <div id="app">
-  <header><b>Cart tracker</b><span id="clock"></span></header>
+  <header><b>Cart tracker</b><span id="clock"></span><button id="spd" aria-label="Simulation speed">12×</button><button id="pause">Pause</button></header>
   <div id="mapwrap">
     <canvas id="c"></canvas>
-    <div id="tools">
-      <button id="spd" aria-label="Simulation speed">12×</button>
-      <button id="pause">Pause</button>
-      <button id="fit">Fit</button>
-    </div>
-    <div id="legend">
-      <span><i style="background:#12924a"></i>Empty, will pass you</span>
-      <span><i style="background:#E08A00;opacity:.6"></i>Full</span>
-      <span><i style="background:#12924a;opacity:.4"></i>Not passing you</span>
-    </div>
+    <div id="tools"><button id="fit" aria-label="Show whole route"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button></div>
     <div id="toast" role="status"></div>
   </div>
   <div id="sheet">
     <div id="next" class="none"><div id="cd">--:--</div><div><div id="nt">Next empty cart</div><div id="ns"></div></div></div>
+    <canvas id="strip" aria-hidden="true"></canvas>
+    <div id="key"><span><i></i>Empty</span><span><i class="f"></i>Full</span><span>Top row runs to B, bottom row to A</span></div>
     <div id="me" class="row"><span class="dot"></span><span id="mel"></span><button id="gps">Locate me</button></div>
     <div id="trip" class="row none"><span class="dot"></span><span id="dl">Tap a road to set a destination</span><button id="clear">Clear</button></div>
     <ul id="list"></ul>
@@ -283,7 +279,7 @@ function drawRoads(){ // the cart route as one line: white casing under teal, so
   ctx.save();ctx.lineCap=ctx.lineJoin='round';ctx.beginPath();
   E.forEach(e=>{ctx.moveTo(SX(N[e[0]][0]),SY(N[e[0]][1]));ctx.lineTo(SX(N[e[1]][0]),SY(N[e[1]][1]));});
   const w=Math.max(2,2.4*view.s);ctx.globalAlpha=.85;ctx.strokeStyle='#fff';ctx.lineWidth=w+3;ctx.stroke();
-  ctx.globalAlpha=.7;ctx.strokeStyle='#0F3D3E';ctx.lineWidth=w;ctx.stroke();ctx.restore();
+  ctx.globalAlpha=1;ctx.strokeStyle='#0F3D3E';ctx.lineWidth=w;ctx.stroke();ctx.restore();
 }
 function drawCart(c,now){
   const p=posAt(c.route,c.s),x=SX(p.x),y=SY(p.y),k=Math.max(.8,Math.min(1.5,view.s*1.25)),on=c.ok;
@@ -301,13 +297,29 @@ function pin(sn,col,txt){
   const x=SX(sn.x),y=SY(sn.y);
   ctx.save();ctx.fillStyle=col;ctx.globalAlpha=.2;ctx.beginPath();ctx.arc(x,y,15,0,7);ctx.fill();ctx.globalAlpha=1;
   ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,7.5,0,7);ctx.fill();ctx.stroke();
-  const right=x<W-90;text(txt,x+(right?13:-13),y-12,col,13,right?'left':'right');ctx.restore();
+  ctx.restore();
 }
 function drawEnds(){
   [[A_NODE,'A'],[V_NODE,'54'],[B_NODE,'B']].forEach(([k,l])=>{if(!k)return;const x=SX(N[k][0]),y=SY(N[k][1]);
     ctx.save();ctx.fillStyle='#fff';ctx.strokeStyle='#0F3D3E';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,12,0,7);ctx.fill();ctx.stroke();
     ctx.fillStyle='#0F3D3E';ctx.font='600 '+(l.length>1?11:13)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(l,x,y+.5);ctx.restore();
     if(!DRAWN)text(END_NAME[l],x,y+(l==='A'&&y+32<H?24:-24),'#0F3D3E',12,'center');});
+}
+const sc=$('strip'),sx=sc.getContext('2d'),mainRoute=mkRoute(mainPath);
+const fV=V_NODE?mainRoute.cum[mainPath.indexOf(V_NODE)]/mainRoute.len:null;
+function drawStrip(){
+  const w=sc.clientWidth,h=56,P=20,L=w-2*P,y=28;if(w<2)return;
+  if(sc.width!==Math.round(w*dpr)){sc.width=Math.round(w*dpr);sc.height=h*dpr;}
+  sx.setTransform(dpr,0,0,dpr,0,0);sx.clearRect(0,0,w,h);
+  sx.strokeStyle='#0F3D3E';sx.lineWidth=3;sx.lineCap='round';sx.beginPath();sx.moveTo(P,y);sx.lineTo(P+L,y);sx.stroke();
+  carts.forEach(c=>{const f=c.s/c.route.len,x=P+L*(c.dir==='A'?f:1-f),cy=y+(c.dir==='A'?-13:13);
+    sx.globalAlpha=c.ok||c.full?1:.35;sx.beginPath();sx.arc(x,cy,5,0,7);
+    if(c.full){sx.strokeStyle='#E08A00';sx.lineWidth=2;sx.stroke();}else{sx.fillStyle='#12924a';sx.fill();}});
+  sx.globalAlpha=1;
+  if(me){const d=routeDist(mainRoute,me,0);if(d!==null){sx.fillStyle='#2563eb';sx.strokeStyle='#fff';sx.lineWidth=2;sx.beginPath();sx.arc(P+L*d/mainRoute.len,y,6,0,7);sx.fill();sx.stroke();}}
+  [[0,'A'],[fV,'54'],[1,'B']].forEach(([f,l])=>{if(f===null)return;const x=P+L*f;
+    sx.fillStyle='#fff';sx.strokeStyle='#0F3D3E';sx.lineWidth=2.5;sx.beginPath();sx.arc(x,y,10,0,7);sx.fill();sx.stroke();
+    sx.fillStyle='#0F3D3E';sx.font='600 '+(l.length>1?10:12)+'px system-ui,sans-serif';sx.textAlign='center';sx.textBaseline='middle';sx.fillText(l,x,y+.5);});
 }
 let lastEval=0;
 function frame(now){
@@ -323,6 +335,7 @@ function frame(now){
   if(now-lastEval>200){update();lastEval=now;}
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   if(img.complete&&img.naturalWidth)ctx.drawImage(img,view.x,view.y,IW*view.s,IH*view.s);
+  ctx.fillStyle='rgba(255,255,255,.3)';ctx.fillRect(0,0,W,H);
   drawRoads();
   if(dest&&best&&best.dd!==null){ // the stretch the next empty cart will drive from you to your destination
     const r=best.route;ctx.save();ctx.strokeStyle='#2563eb';ctx.globalAlpha=.9;ctx.setLineDash([2,9]);ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
@@ -333,7 +346,8 @@ function frame(now){
   carts.slice().sort((a,b)=>(a.ok?1:0)-(b.ok?1:0)).forEach(c=>drawCart(c,now));
   if(dest)pin(dest,'#dc2626','Destination');
   pin(me,'#2563eb','You');
-  $('clock').textContent=paused?'Paused':'Simulation '+mmss(simClock);
+  $('clock').textContent=paused?'Paused':'Simulated '+mmss(simClock);
+  drawStrip();
 }
 setMe(snap(...(N.J4||N[mainPath[mainPath.length>>1]])));if(netNote)toast(netNote,5000);
 requestAnimationFrame(frame);
