@@ -112,13 +112,13 @@ function setNet(net,a,b,v){
 }
 const dist=(a,b)=>Math.hypot(N[a][0]-N[b][0],N[a][1]-N[b][1]);
 const ekey=(a,b)=>a<b?a+'|'+b:b+'|'+a;
-function dijkstra(s,wf){ // wf(edgeKey) = weight multiplier
+function dijkstra(s,wf,stop){ // wf(edgeKey) = weight multiplier; stop = node to end the search at
   const D={},P={},Q=new Set(NODES);NODES.forEach(k=>D[k]=Infinity);D[s]=0;
-  while(Q.size){let u=null;Q.forEach(k=>{if(u===null||D[k]<D[u])u=k});Q.delete(u);if(D[u]===Infinity)break;
+  while(Q.size){let u=null;Q.forEach(k=>{if(u===null||D[k]<D[u])u=k});Q.delete(u);if(D[u]===Infinity||u===stop)break;
     adj[u].forEach(([v,d])=>{const nd=D[u]+d*(wf?wf(ekey(u,v)):1);if(nd<D[v]){D[v]=nd;P[v]=u}});}
   return {D,P};
 }
-function path(s,t,wf){const {P}=dijkstra(s,wf);const r=[t];while(r[0]!==s){if(P[r[0]]===undefined)return null;r.unshift(P[r[0]]);}return r;}
+function path(s,t,wf){const {P}=dijkstra(s,wf,t);const r=[t];while(r[0]!==s){if(P[r[0]]===undefined)return null;r.unshift(P[r[0]]);}return r;}
 // network from a drawing saved by draw.html: {A,B,V,paths} in map pixels. Every drawn point is a node.
 // shortcut: paths join only at their ends (to the nearest point of another path), not where two paths cross mid-way; split the path at the crossing when drawing
 function fromDrawing(d){
@@ -145,7 +145,6 @@ let netNote='';
 const via=(a,b,wf)=>V_NODE?path(a,V_NODE,wf).concat(path(V_NODE,b,wf).slice(1)):path(a,b,wf);
 const mainPath=via(A_NODE,B_NODE);
 const mainKeys=new Set(mainPath.slice(1).map((k,i)=>ekey(mainPath[i],k)));
-const distB=dijkstra(B_NODE).D;          // graph distance of every node to B, used to name the trip direction
 
 // ---------- routes with rounded corners ----------
 function mkRoute(nodes){
@@ -200,7 +199,6 @@ function snap(x,y){
   return best;
 }
 function label(sn){let b=null,bd=70;for(const k in DATA.net.N){const q=DATA.net.N[k],d=Math.hypot(q[0]-sn.x,q[1]-sn.y);if(NAMES[k]&&d<bd){bd=d;b=k}}return b?NAMES[b]:'the cart road';}
-const toB=sn=>Math.min(distB[sn.a]+sn.t*dist(sn.a,sn.b),distB[sn.b]+(1-sn.t)*dist(sn.a,sn.b));
 // distance along route r (from its start) where point sn lies, at or ahead of s0
 function routeDist(r,sn,s0){
   for(let i=0;i<r.nodes.length-1;i++){
@@ -215,8 +213,9 @@ function routeDist(r,sn,s0){
 const $=id=>document.getElementById(id);
 let me=null,dest=null,paused=false,spi=0,best=null,simClock=0,toastT=null;
 function toast(msg,ms){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),ms||2600);}
-function setMe(sn){me=sn;$('mel').textContent='Near '+label(me);update();}
-function setDest(sn){dest=sn;update();}
+const put=(id,s)=>{const el=$(id);if(el.textContent!==s)el.textContent=s;};
+function setMe(sn){me=sn;dirty=true;put('mel','Near '+label(me));update();}
+function setDest(sn){dest=sn;dirty=true;put('dl',dest?'To '+label(dest):'Tap a road to set a destination');update();}
 
 function evaluate(){
   const list=[];
@@ -237,29 +236,27 @@ $('foot').textContent='Simulation, not live tracking. Based on '+DATA.gaps.lengt
 function update(){
   if(!me)return;
   const list=evaluate(),good=list.filter(c=>c.ok);
+  if(good[0]!==best)dirty=true;
   best=good[0]||null;
   $('trip').classList.toggle('none',!dest);
-  if(dest){const toward=toB(dest)<toB(me)?'B':'A';
-    $('dl').textContent='To '+label(dest);}
-  else $('dl').textContent='Tap a road to set a destination';
   $('next').classList.toggle('none',!best);
-  
-  if(best){$('cd').textContent=mmss(best.eta);
-    $('ns').textContent='Cart '+best.id+' to '+END_NAME[best.dir==='A'?'B':'A']+(dest?', ride about '+mmss((best.dd-best.dm)/best.v):'');}
-  else{$('cd').textContent='--:--';$('ns').textContent=(dest?'None on that route right now':'None heading your way right now')+', one leaves about every '+mmss(medGap);}
+  if(best){put('cd',mmss(best.eta));
+    put('ns','Cart '+best.id+' to '+END_NAME[best.dir==='A'?'B':'A']+(dest?', ride about '+mmss((best.dd-best.dm)/best.v):''));}
+  else{put('cd','--:--');put('ns',(dest?'None on that route right now':'None heading your way right now')+', one leaves about every '+mmss(medGap));}
   const rows=list.filter(c=>c!==best).slice(0,2),ul=$('list');
   while(ul.children.length<rows.length){const li=document.createElement('li');li.innerHTML='<span></span><span class="tag"></span><b></b>';ul.appendChild(li);}
   while(ul.children.length>rows.length)ul.lastChild.remove();
-  rows.forEach((c,i)=>{const li=ul.children[i];li.className=c.ok?'':'f';li.children[0].textContent='Cart '+c.id;
-    li.children[1].textContent=c.ok?'empty':'full';li.children[1].className='tag'+(c.ok?'':' n');li.children[2].textContent=mmss(c.eta);});
+  rows.forEach((c,i)=>{const li=ul.children[i],k=c.id+(c.ok?'e':'f'),e=mmss(c.eta);
+    if(li.k!==k){li.k=k;li.className=c.ok?'':'f';li.children[0].textContent='Cart '+c.id;li.children[1].textContent=c.ok?'empty':'full';li.children[1].className='tag'+(c.ok?'':' n');}
+    if(li.children[2].textContent!==e)li.children[2].textContent=e;});
 }
 
 // ---------- drawing ----------
-const cv=$('c'),tctx=cv.getContext('2d'),bcv=$('base'),bctx=bcv.getContext('2d',{alpha:false}),wrap=$('mapwrap');let ctx=tctx,dirty=true;
-const img=new Image();img.onload=()=>dirty=true;img.src='data:image/jpeg;base64,'+DATA.img;
+const cv=$('c'),tctx=cv.getContext('2d'),bcv=$('base'),bctx=bcv.getContext('2d',{alpha:false}),wrap=$('mapwrap');let ctx=tctx,dirty=true,rect=null;
+const img=new Image();img.onload=()=>{dirty=true;DATA.img=null;};img.src='data:image/jpeg;base64,'+DATA.img;
 const IW=820,IH=744;let view={s:1,x:0,y:0},dpr=1,W=0,H=0,t0=performance.now(),touched=false;
 const BB=(()=>{let x0=1e9,y0=1e9,x1=0,y1=0;NODES.forEach(k=>{x0=Math.min(x0,N[k][0]);y0=Math.min(y0,N[k][1]);x1=Math.max(x1,N[k][0]);y1=Math.max(y1,N[k][1]);});return {x0:x0-30,y0:y0-34,x1:x1+30,y1:y1+34};})();
-function size(){const r=wrap.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);const first=!W;
+function size(){const r=rect=wrap.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);const first=!W;
   if(r.width<2||r.height<2||(r.width===W&&r.height===H))return;
   if(!first){view.x+=(r.width-W)/2;view.y+=(r.height-H)/2;}
   W=r.width;H=r.height;bcv.width=cv.width=Math.round(W*dpr);bcv.height=cv.height=Math.round(H*dpr);dirty=true;if(first||!touched)fit();else clamp();}
@@ -322,40 +319,43 @@ function drawStrip(){
     sx.fillStyle='#0F3D3E';sx.font='600 '+(l.length>1?10:12)+'px system-ui,sans-serif';sx.textAlign='center';sx.textBaseline='middle';sx.fillText(l,x,y+.5);});
 }
 let lastEval=0;
+let still=false,tick=0;
 function frame(now){
-  requestAnimationFrame(frame);if(now-t0<30)return;
+  requestAnimationFrame(frame);
+  if(now-t0<(dirty?12:30))return;                 // 30 fps while idle, full rate while you pan or zoom
+  if(paused&&!dirty&&still){t0=now;return;}       // nothing moves while paused
   const dt=Math.min(0.1,(now-t0)/1000);t0=now;
   if(!paused){
     const sd=dt*SPEEDS[spi];simClock+=sd;
-    carts.forEach(c=>{c.s+=c.v*sd;if(c.flash>0)c.flash=Math.max(0,c.flash-dt*1.2);
-      if(c.pickupAt!==null&&c.s>=c.pickupAt){c.full=true;c.pickupAt=null;c.flash=1;}});
-    carts=carts.filter(c=>c.s<c.route.len);
-    ['A','B'].forEach(d=>{spawnT[d]-=sd;if(spawnT[d]<=0){spawn(d,0);spawnT[d]+=nextGap();}});
+    for(const c of carts){c.s+=c.v*sd;if(c.flash>0)c.flash=Math.max(0,c.flash-dt*1.2);
+      if(c.pickupAt!==null&&c.s>=c.pickupAt){c.full=true;c.pickupAt=null;c.flash=1;}}
+    if(carts.some(c=>c.s>=c.route.len))carts=carts.filter(c=>c.s<c.route.len);
+    for(const d of ['A','B']){spawnT[d]-=sd;if(spawnT[d]<=0){spawn(d,0);spawnT[d]+=nextGap();}}
   }
   if(now-lastEval>200){update();lastEval=now;}
   if(dirty){dirty=false;ctx=bctx;ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.fillStyle='#f8f1cf';ctx.fillRect(0,0,W,H);
     if(img.complete&&img.naturalWidth)ctx.drawImage(img,view.x,view.y,IW*view.s,IH*view.s);
     ctx.fillStyle='rgba(255,255,255,.3)';ctx.fillRect(0,0,W,H);   // calmer basemap so the route and carts carry the colour
-    drawRoads();drawEnds();ctx=tctx;}
+    drawRoads();
+    if(dest&&best&&best.dd!==null){ // the stretch the next empty cart will drive from you to your destination
+      const r=best.route;ctx.save();ctx.strokeStyle='#2563eb';ctx.globalAlpha=.9;ctx.setLineDash([2,9]);ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
+      for(let d=best.dm;;d+=3){const e=Math.min(d,best.dd),p=posAt(r,e);d===best.dm?ctx.moveTo(SX(p.x),SY(p.y)):ctx.lineTo(SX(p.x),SY(p.y));if(e>=best.dd)break;}
+      ctx.stroke();ctx.restore();
+    }
+    drawEnds();if(dest)pin(dest,'#dc2626');if(me)pin(me,'#2563eb');ctx=tctx;}
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-  if(dest&&best&&best.dd!==null){ // the stretch the next empty cart will drive from you to your destination
-    const r=best.route;ctx.save();ctx.strokeStyle='#2563eb';ctx.globalAlpha=.9;ctx.setLineDash([2,9]);ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
-    for(let d=best.dm;;d+=3){const e=Math.min(d,best.dd),p=posAt(r,e);d===best.dm?ctx.moveTo(SX(p.x),SY(p.y)):ctx.lineTo(SX(p.x),SY(p.y));if(e>=best.dd)break;}
-    ctx.stroke();ctx.restore();
-  }
-  carts.slice().sort((a,b)=>(a.ok?1:0)-(b.ok?1:0)).forEach(c=>drawCart(c,now));
-  if(dest)pin(dest,'#dc2626','Destination');
-  pin(me,'#2563eb','You');
-  const ck=paused?'Paused':'Simulated '+mmss(simClock);if($('clock').textContent!==ck)$('clock').textContent=ck;
-  drawStrip();
+  for(const on of [false,true])for(const c of carts)if(c.ok===on)drawCart(c,now);   // carts you can take are drawn on top
+  put('clock',paused?'Paused':'Simulated '+mmss(simClock));
+  if(++tick%3===0||paused)drawStrip();           // the line diagram moves slowly: 10 fps is enough
+  still=paused;
 }
 setMe(snap(...(N.J4||N[mainPath[mainPath.length>>1]])));if(netNote)toast(netNote,5000);
 requestAnimationFrame(frame);
 
 // ---------- input: pan, pinch, tap, long-press ----------
 const ptrs=new Map();let moved=false,startPt=null,pinch0=null,pressT=null,multi=false;
-const loc=e=>{const r=wrap.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};};
+const loc=e=>{const r=rect;return {x:e.clientX-r.left,y:e.clientY-r.top};};
 function pick(pt){const m=toMap(pt.x,pt.y),sn=snap(m.x,m.y);
   if(sn.d*view.s>46){toast('Tap closer to the cart route');return null;}return sn;}
 wrap.addEventListener('pointerdown',e=>{
