@@ -32,7 +32,7 @@ Open `http://localhost:8000/draw.html`. Mark A, B and stop 54, draw the paths, p
 - `index.html` the app
 - `draw.html` the route drawing tool; `server.py` the local server that saves it
 - `drawings/drawing.json` the saved route; `drawings/drawing.js` the same data as a script the app loads
-- `map/lpu.jpg` the campus map; `map/net.json` the built-in road network (pixel coordinates), from `tools/net.py`
+- `map/lpu.jpg` the campus map at 1080 x 744, the pixel grid all coordinates use; `map/lpu@3x.jpg` the same map at 3x for the drawing tool (the app embeds this file); `map/net.json` the built-in road network (pixel coordinates), from `tools/net.py`
 
 ## Known limits
 - Times shown are simulated time. At 12x they count down 12 times faster than a real clock.
@@ -40,3 +40,6 @@ Open `http://localhost:8000/draw.html`. Mark A, B and stop 54, draw the paths, p
 - The GPS anchors in `index.html` (`GPS` constant) are approximate and need measured values. GPS only places you along the main A to B road. Some browsers block GPS for a file opened directly; use the `localhost` steps above if that happens.
 - The map is a drawing, not to scale. Three short links (near Block 21, the central plaza, and the Block 2 plaza) cross paved ground where the map does not show a continuous road; they are drawn dashed. Near Block 7 the road runs behind the building in the drawing, so carts pass over its corner for a moment.
 - Roads that are dead ends for an A to B trip (Indoor stadium, Gate 2, Block 1) are in `net.json` but carts do not use them.
+
+## Credit
+Campus map: "LPU isometric map design" by Takur Akhil Teja Talla, https://www.behance.net/gallery/105159145/LPU-isometric-map-design (all rights reserved by the designer; used here for a student project).

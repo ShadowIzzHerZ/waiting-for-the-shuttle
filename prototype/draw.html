@@ -18,7 +18,7 @@ button.on{background:#F2A541}
 </div>
 <canvas id="c"></canvas><div id="msg"></div>
 <script>
-const cv=document.getElementById('c'),g=cv.getContext('2d'),img=new Image();img.src='map/lpu.jpg';
+const cv=document.getElementById('c'),g=cv.getContext('2d'),img=new Image();img.src='map/lpu@3x.jpg';
 let D={A:null,B:null,V:null,paths:[]};try{D=JSON.parse(localStorage.getItem('draw'))||D}catch(e){}
 // take from the saved drawing whatever this browser does not have yet, so Save never drops it
 fetch('drawings/drawing.json').then(r=>r.json()).then(d=>{for(const k of['A','B','V'])D[k]=D[k]||d[k]||null;if(!(D.paths&&D.paths.length))D.paths=d.paths||[];draw()}).catch(()=>{});
@@ -30,7 +30,7 @@ const toImg=(px,py)=>[(px-v.x)/v.s,(py-v.y)/v.s];
 function pin(p,c,l){g.beginPath();g.arc(p[0],p[1],14/v.s,0,7);g.fillStyle=c;g.fill();g.lineWidth=3/v.s;g.strokeStyle='#fff';g.stroke();
  g.fillStyle='#fff';g.font='bold '+16/v.s+'px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(l,p[0],p[1]+1/v.s)}
 function draw(){g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);g.setTransform(v.s,0,0,v.s,v.x,v.y);
- if(img.complete)g.drawImage(img,0,0);g.lineWidth=4/v.s;g.lineJoin=g.lineCap='round';g.strokeStyle='#e11d48';
+ if(img.complete)g.drawImage(img,0,0,1080,744);g.lineWidth=4/v.s;g.lineJoin=g.lineCap='round';g.strokeStyle='#e11d48';
  for(const p of [...D.paths,...(cur?[cur]:[])]){g.beginPath();p.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.stroke()}
  if(D.A)pin(D.A,'#12924a','A');if(D.B)pin(D.B,'#2563eb','B');if(D.V)pin(D.V,'#E08A00','54')}
 img.onload=fit;onresize=fit;
