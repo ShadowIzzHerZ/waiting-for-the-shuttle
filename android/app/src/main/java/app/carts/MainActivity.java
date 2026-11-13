@@ -16,9 +16,9 @@ public class MainActivity extends Activity {
   GeolocationPermissions.Callback geoCb; String geoOrigin;
   @Override protected void onCreate(Bundle b) {
     super.onCreate(b);
-    getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFFFFFFFF));
+    getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFFF8F6F1));
     w = new WebView(this);
-    w.setBackgroundColor(0xFFFFFFFF);
+    w.setBackgroundColor(0xFFF8F6F1);
     // targetSdk 35 draws edge-to-edge: keep the page out from under the status and nav bars
     w.setOnApplyWindowInsetsListener((v, i) -> { android.graphics.Insets s = i.getInsets(WindowInsets.Type.systemBars()); v.setPadding(s.left, s.top, s.right, s.bottom); return WindowInsets.CONSUMED; });
     WebSettings s = w.getSettings();
