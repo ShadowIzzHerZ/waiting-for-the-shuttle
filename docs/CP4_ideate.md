@@ -2,7 +2,7 @@
 
 Question: How might we tell students when a cart will reach their stop?
 
-## Starter list (32 ideas; reviewed, changed and extended by the team; see AI-use note in the README)
+## Starter list (32 ideas; reviewed, changed and extended by the team)
 **Knowing when the cart is coming:** 1 app with "next cart in about N min"; 2 predictions from past timings by stop and time of day; 3 driver's phone shares location; 4 students tap "cart just passed"; 5 QR code at each stop; 6 board at busy stops; 7 printed "usual wait" chart; 8 WhatsApp/Telegram bot; 9 alert when a cart leaves the stop before yours; 10 colour sign at stops.
 
 **Cutting the wait:** 11 leave after a set time even if not full; 12 more carts when classes change; 13 express cart between busiest stops; 14 space out departures; 15 hold a cart if another is right behind; 16 send idle carts to the longest queue; 17 peak and quiet schedules; 18 extra carts on long-gap routes.

@@ -20,6 +20,3 @@ A prediction app that shows cart positions and when one will reach your stop, bu
 
 ## Prototype
 Preset routes A and B; carts move along campus roads (never through buildings); empty carts shown in full colour, full or opposite-direction carts dimmed; tap the map to pick a destination; GPS "where am I"; ETA estimated from collected timing data. Runs on a phone as a web app over USB debugging. ETAs are simulated from our timing data, not live cart data.
-
-## AI-use statement
-We used an AI assistant (Claude by Anthropic) to help draft documents, the presentation, the starter idea list in CP4 and to write prototype code. Interview data, observations and decisions are the team's own; AI-suggested ideas are reviewed and edited by the team, and unfilled parts of the documents are marked as still to do.
