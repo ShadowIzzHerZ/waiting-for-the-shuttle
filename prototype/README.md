@@ -12,19 +12,27 @@ A single-file web app (`index.html`) that runs in any phone browser. No install 
 - A "next empty cart" countdown, the ride time to your destination, and the stretch of road it will drive, drawn as a dotted blue line.
 - Drag to pan, pinch to zoom, "Fit map" to see the whole campus again. Speed button: 12x, 36x or 1x real time. Pause button.
 
-## Run it on a phone with USB debugging
-1. On the phone: Settings > Developer options > turn on USB debugging. Connect to the computer.
-2. On the computer, in this folder: `python3 -m http.server 8000`
-3. `adb reverse tcp:8000 tcp:8000`
-4. On the phone open Chrome and go to `http://localhost:8000`
+## Run it
+From this folder: `python3 server.py`, then open `http://localhost:8000`. `server.py` serves the folder and saves drawings; plain `python3 -m http.server` shows the app but cannot save.
 
-Or just open `index.html` directly in a desktop browser, or copy the file to the phone and open it there.
+On a phone over USB debugging: `adb reverse tcp:8000 tcp:8000`, then open `http://localhost:8000` in Chrome. Chrome's menu has **Install app** (it is a PWA: `manifest.webmanifest`, `sw.js`).
+
+## Android app
+`../android` is a WebView wrapper around the same files.
+1. Copy `index.html`, `map/` and `drawings/drawing.js` into `../android/app/src/main/assets/`
+2. In `../android`: `gradle assembleDebug`
+3. `adb install -r app/build/outputs/apk/debug/app-debug.apk`
+
+The APK is debug-signed: fine for sideloading, not for the Play Store.
+
+## Drawing the cart route
+Open `http://localhost:8000/draw.html`. Mark A, B and stop 54, draw the paths, press Save. Carts then run A -> 54 -> B and back on the drawn paths only; 54 is a via stop, not an end. Paths join where one ends within 25 map pixels of another. With no drawing, the app uses the built-in road network.
 
 ## Files
 - `index.html` the app
-- `map/lpu.jpg` the campus map; `map/net.json` the road network traced by hand over it (pixel coordinates)
-- `map/net_check.jpg` the network drawn over the map, for checking it by eye
-- `tools/net.py` the network source: edit the points there, run `python3 tools/net.py` from this folder, then paste the new `map/net.json` into `DATA.net` in `index.html`
+- `draw.html` the route drawing tool; `server.py` the local server that saves it
+- `drawings/drawing.json` the saved route; `drawings/drawing.js` the same data as a script the app loads
+- `map/lpu.jpg` the campus map; `map/net.json` the built-in road network (pixel coordinates), from `tools/net.py`
 
 ## Known limits
 - Times shown are simulated time. At 12x they count down 12 times faster than a real clock.
