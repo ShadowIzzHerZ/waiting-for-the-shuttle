@@ -252,7 +252,7 @@ function update(){
 }
 
 // ---------- drawing ----------
-const cv=$('c'),tctx=cv.getContext('2d'),bcv=$('base'),bctx=bcv.getContext('2d',{alpha:false}),wrap=$('mapwrap');let ctx=tctx,dirty=true,rect=null;
+const cv=$('c'),tctx=cv.getContext('2d'),bcv=$('base'),bctx=bcv.getContext('2d'),wrap=$('mapwrap');let ctx=tctx,dirty=true,rect=null;
 const img=new Image();img.onload=()=>{dirty=true;DATA.img=null;};img.src='data:image/jpeg;base64,'+DATA.img;
 const IW=1080,IH=744;let view={s:1,x:0,y:0},dpr=1,W=0,H=0,t0=performance.now(),touched=false;
 const BB=(()=>{let x0=1e9,y0=1e9,x1=0,y1=0;NODES.forEach(k=>{x0=Math.min(x0,N[k][0]);y0=Math.min(y0,N[k][1]);x1=Math.max(x1,N[k][0]);y1=Math.max(y1,N[k][1]);});return {x0:x0-30,y0:y0-34,x1:x1+30,y1:y1+34};})();
@@ -260,9 +260,10 @@ function size(){const r=rect=wrap.getBoundingClientRect();dpr=Math.min(2,window.
   if(r.width<2||r.height<2||(r.width===W&&r.height===H))return;
   if(!first){view.x+=(r.width-W)/2;view.y+=(r.height-H)/2;}
   W=r.width;H=r.height;bcv.width=cv.width=Math.round(W*dpr);bcv.height=cv.height=Math.round(H*dpr);dirty=true;if(first||!touched)fit();else clamp();}
-function fit(){dirty=true;touched=false;const s=Math.min(W/(BB.x1-BB.x0),H/(BB.y1-BB.y0));view={s,x:W/2-(BB.x0+BB.x1)/2*s,y:H/2-(BB.y0+BB.y1)/2*s};}
-function clamp(){dirty=true;view.s=Math.max(.4,Math.min(8,view.s)); // keep part of the campus on screen
-  view.x=Math.max(W*.3-BB.x1*view.s,Math.min(W*.7-BB.x0*view.s,view.x));view.y=Math.max(H*.3-BB.y1*view.s,Math.min(H*.7-BB.y0*view.s,view.y));}
+function fit(){if(!W||!H)return;dirty=true;touched=false;const s=Math.min(W/(BB.x1-BB.x0),H/(BB.y1-BB.y0));view={s,x:W/2-(BB.x0+BB.x1)/2*s,y:H/2-(BB.y0+BB.y1)/2*s};clamp();}
+const minS=()=>Math.max(W/IW,H/IH);   // furthest zoom out: the map still covers the whole frame
+function clamp(){if(!W||!H)return;dirty=true;view.s=Math.max(minS(),Math.min(8,view.s)); // the map edges never come inside the frame
+  view.x=Math.max(W-IW*view.s,Math.min(0,view.x));view.y=Math.max(H-IH*view.s,Math.min(0,view.y));}
 const toMap=(px,py)=>({x:(px-view.x)/view.s,y:(py-view.y)/view.s});
 const SX=x=>view.x+x*view.s,SY=y=>view.y+y*view.s;
 size();
@@ -373,7 +374,7 @@ wrap.addEventListener('pointermove',e=>{
   if(ptrs.size>=2&&pinch0){
     const [a0,b0]=[...ptrs.values()],c0x=(a0.x+b0.x)/2,c0y=(a0.y+b0.y)/2;ptrs.set(e.pointerId,p);
     const [a,b]=[...ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y),cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;
-    const ns=Math.max(.4,Math.min(8,pinch0.s*d/pinch0.d)),k=ns/view.s;
+    const ns=Math.max(minS(),Math.min(8,pinch0.s*d/pinch0.d)),k=ns/view.s;
     view.x=cx-(c0x-view.x)*k;view.y=cy-(c0y-view.y)*k;view.s=ns;touched=true;clamp();return;}
   if(!moved&&Math.hypot(p.x-startPt.x,p.y-startPt.y)>10){moved=true;clearTimeout(pressT);old.x=startPt.x;old.y=startPt.y;}
   if(moved&&ptrs.size===1){const dx=p.x-old.x,dy=p.y-old.y,dt=Math.max(1,e.timeStamp-vel.t);view.x+=dx;view.y+=dy;touched=true;clamp();
@@ -388,7 +389,7 @@ function up(e){
 }
 wrap.addEventListener('pointerup',up);wrap.addEventListener('pointercancel',up);
 wrap.addEventListener('contextmenu',e=>e.preventDefault());
-wrap.addEventListener('wheel',e=>{e.preventDefault();const p=loc(e),ns=Math.max(.4,Math.min(8,view.s*(e.deltaY<0?1.15:.87))),k=ns/view.s;
+wrap.addEventListener('wheel',e=>{e.preventDefault();const p=loc(e),ns=Math.max(minS(),Math.min(8,view.s*(e.deltaY<0?1.15:.87))),k=ns/view.s;
   view.x=p.x-(p.x-view.x)*k;view.y=p.y-(p.y-view.y)*k;view.s=ns;touched=true;clamp();},{passive:false});
 
 // ---------- buttons ----------
