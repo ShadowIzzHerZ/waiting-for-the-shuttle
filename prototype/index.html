@@ -19,7 +19,7 @@ header button{border:0;height:36px;min-width:48px;padding:0 8px;color:var(--ink2
 header b{font-size:18px;font-weight:600}
 #clock{margin-right:auto;font-size:14px;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
 #mapwrap{flex:1;min-height:120px;position:relative;overflow:hidden;touch-action:none;background:#f8f1cf;user-select:none;-webkit-user-select:none}
-#c{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+#base,#c{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 #tools{position:absolute;right:12px;top:12px}
 #tools button{display:grid;place-items:center;width:44px;height:44px;padding:0}
 #toast{position:absolute;left:12px;right:68px;top:12px;background:var(--ink);color:#fff;font-size:14px;padding:8px 12px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none}
@@ -63,7 +63,7 @@ header b{font-size:18px;font-weight:600}
 <div id="app">
   <header><b>Cart tracker</b><span id="clock"></span><button id="spd" aria-label="Simulation speed">12×</button><button id="pause">Pause</button></header>
   <div id="mapwrap">
-    <canvas id="c"></canvas>
+    <canvas id="base"></canvas><canvas id="c"></canvas>
     <div id="tools"><button id="fit" aria-label="Show whole route"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button></div>
     <div id="toast" role="status"></div>
   </div>
@@ -255,16 +255,16 @@ function update(){
 }
 
 // ---------- drawing ----------
-const cv=$('c'),ctx=cv.getContext('2d'),wrap=$('mapwrap');
-const img=new Image();img.src='data:image/jpeg;base64,'+DATA.img;
+const cv=$('c'),tctx=cv.getContext('2d'),bcv=$('base'),bctx=bcv.getContext('2d',{alpha:false}),wrap=$('mapwrap');let ctx=tctx,dirty=true;
+const img=new Image();img.onload=()=>dirty=true;img.src='data:image/jpeg;base64,'+DATA.img;
 const IW=820,IH=744;let view={s:1,x:0,y:0},dpr=1,W=0,H=0,t0=performance.now(),touched=false;
 const BB=(()=>{let x0=1e9,y0=1e9,x1=0,y1=0;NODES.forEach(k=>{x0=Math.min(x0,N[k][0]);y0=Math.min(y0,N[k][1]);x1=Math.max(x1,N[k][0]);y1=Math.max(y1,N[k][1]);});return {x0:x0-30,y0:y0-34,x1:x1+30,y1:y1+34};})();
 function size(){const r=wrap.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);const first=!W;
   if(r.width<2||r.height<2||(r.width===W&&r.height===H))return;
   if(!first){view.x+=(r.width-W)/2;view.y+=(r.height-H)/2;}
-  W=r.width;H=r.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);if(first||!touched)fit();else clamp();}
-function fit(){touched=false;const s=Math.min(W/(BB.x1-BB.x0),H/(BB.y1-BB.y0));view={s,x:W/2-(BB.x0+BB.x1)/2*s,y:H/2-(BB.y0+BB.y1)/2*s};}
-function clamp(){view.s=Math.max(.4,Math.min(5,view.s)); // keep part of the campus on screen
+  W=r.width;H=r.height;bcv.width=cv.width=Math.round(W*dpr);bcv.height=cv.height=Math.round(H*dpr);dirty=true;if(first||!touched)fit();else clamp();}
+function fit(){dirty=true;touched=false;const s=Math.min(W/(BB.x1-BB.x0),H/(BB.y1-BB.y0));view={s,x:W/2-(BB.x0+BB.x1)/2*s,y:H/2-(BB.y0+BB.y1)/2*s};}
+function clamp(){dirty=true;view.s=Math.max(.4,Math.min(5,view.s)); // keep part of the campus on screen
   view.x=Math.max(W*.3-BB.x1*view.s,Math.min(W*.7-BB.x0*view.s,view.x));view.y=Math.max(H*.3-BB.y1*view.s,Math.min(H*.7-BB.y0*view.s,view.y));}
 const toMap=(px,py)=>({x:(px-view.x)/view.s,y:(py-view.y)/view.s});
 const SX=x=>view.x+x*view.s,SY=y=>view.y+y*view.s;
@@ -333,20 +333,21 @@ function frame(now){
     ['A','B'].forEach(d=>{spawnT[d]-=sd;if(spawnT[d]<=0){spawn(d,0);spawnT[d]+=nextGap();}});
   }
   if(now-lastEval>200){update();lastEval=now;}
+  if(dirty){dirty=false;ctx=bctx;ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.fillStyle='#f8f1cf';ctx.fillRect(0,0,W,H);
+    if(img.complete&&img.naturalWidth)ctx.drawImage(img,view.x,view.y,IW*view.s,IH*view.s);
+    ctx.fillStyle='rgba(255,255,255,.3)';ctx.fillRect(0,0,W,H);   // calmer basemap so the route and carts carry the colour
+    drawRoads();drawEnds();ctx=tctx;}
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-  if(img.complete&&img.naturalWidth)ctx.drawImage(img,view.x,view.y,IW*view.s,IH*view.s);
-  ctx.fillStyle='rgba(255,255,255,.3)';ctx.fillRect(0,0,W,H);
-  drawRoads();
   if(dest&&best&&best.dd!==null){ // the stretch the next empty cart will drive from you to your destination
     const r=best.route;ctx.save();ctx.strokeStyle='#2563eb';ctx.globalAlpha=.9;ctx.setLineDash([2,9]);ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
     for(let d=best.dm;;d+=3){const e=Math.min(d,best.dd),p=posAt(r,e);d===best.dm?ctx.moveTo(SX(p.x),SY(p.y)):ctx.lineTo(SX(p.x),SY(p.y));if(e>=best.dd)break;}
     ctx.stroke();ctx.restore();
   }
-  drawEnds();
   carts.slice().sort((a,b)=>(a.ok?1:0)-(b.ok?1:0)).forEach(c=>drawCart(c,now));
   if(dest)pin(dest,'#dc2626','Destination');
   pin(me,'#2563eb','You');
-  $('clock').textContent=paused?'Paused':'Simulated '+mmss(simClock);
+  const ck=paused?'Paused':'Simulated '+mmss(simClock);if($('clock').textContent!==ck)$('clock').textContent=ck;
   drawStrip();
 }
 setMe(snap(...(N.J4||N[mainPath[mainPath.length>>1]])));if(netNote)toast(netNote,5000);

@@ -1,4 +1,4 @@
-const C="carts-v5",F=["./","index.html","map/lpu.jpg","map/net.json","manifest.webmanifest","icon-192.png","icon-512.png"];
+const C="carts-v6",F=["./","index.html","drawings/drawing.js","manifest.webmanifest","icon-192.png","icon-512.png"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(C).then(c=>c.addAll(F)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));
 // network first so a new drawing or app version shows at once; the cache is the offline copy
