@@ -115,7 +115,7 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px}
       <button id="gps" aria-label="Live location on or off"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
       <button id="fit" aria-label="Show whole route"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
       <button id="d3" aria-label="Switch between 3D and flat map">2D</button>
-      <button id="spd" aria-label="Simulation speed">12x</button>
+      <button id="spd" aria-label="Zoom level">1x</button>
       <button id="pause" aria-label="Pause simulation"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path id="pico" d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
     </div>
     <div id="dev" hidden><b>Developer</b><button id="devA">Place Point A</button><button id="devB">Place Point B</button><button id="devR">Reset</button><button id="devX">Close</button><span id="devc"></span></div>
@@ -124,7 +124,7 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px}
   <div id="sheet">
     <button id="grab" aria-label="Show less" aria-expanded="true"></button>
     <div id="next" class="none">
-      <div><div><span id="chip"></span><span id="via"></span></div><div class="big"><span id="cd">--:--</span><small>min wait</small></div><div id="ns"></div></div>
+      <div><div><span id="chip"></span><span id="via"></span></div><div class="big"><span id="cd">--:--</span><small id="cdl">min wait</small></div><div id="ns"></div></div>
       <div class="r"><div class="lbl">Ride time</div><div id="rt">--:--</div><div id="rd"></div></div>
     </div>
     <div id="trip"><span id="dl"></span><span id="km"></span></div>

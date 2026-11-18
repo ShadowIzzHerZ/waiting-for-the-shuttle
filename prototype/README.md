@@ -12,7 +12,7 @@ The 3D map is ported from [lpu-wayfinder](https://github.com/dushyantpal38-ui/lp
 - About 30% of carts take a different path. Carts follow the traced campus roads only and curve round corners.
 - Your position: live GNSS starts when the app opens (same approach as lpu-wayfinder: a quick rough fix first, then high-accuracy GPS, falling back to network location indoors, keeping the last spot on a brief drop, and opening at the last spot this phone was on campus). Blue dot with accuracy ring and, while walking, an arrow for your heading. The location button turns it off and on. Long-press the map to place yourself by hand and a destination (tap a road). Empty carts that will pass you and go on to your destination are bright and show a countdown; full carts and carts going the other way or on another path are dimmed.
 - A "next empty cart" countdown, the ride time to your destination, and the stretch of road it will drive, drawn as a dotted blue line.
-- Drag to pan, pinch to zoom, two-finger twist to rotate, two-finger drag to tilt (desktop: right-drag). "Fit map" to see the whole campus again. 2D/3D button flattens or raises the buildings. Speed button: 12x, 36x or 1x real time. Pause button.
+- Drag to pan, pinch to zoom, two-finger twist to rotate, two-finger drag to tilt (desktop: right-drag). "Fit map" to see the whole campus again. 2D/3D button flattens or raises the buildings. Zoom button: 1x shows the whole route, 2x and 4x zoom in on you. Getting on: when the empty cart you wait for reaches you, you board it; the map follows the cart (drag to look around, the location button to follow again) and the sheet counts down to your destination or the end stop. Pause button.
 
 ## Run it
 From this folder: `python3 server.py`, then open `http://localhost:8000`. `server.py` serves the folder and saves drawings; plain `python3 -m http.server` shows the app but cannot save.
@@ -46,7 +46,7 @@ Carts use OpenStreetMap roads of the types in `CART_ROADS`; dead ends are droppe
 
 ## Known limits
 - Times shown are simulated time. At 12x they count down 12 times faster than a real clock.
-- Cart speed is 10 to 15 km/h (each cart picks one in that range). Distances are real (from OpenStreetMap).
+- Cart speed is 16.5 to 19.5 km/h (each cart picks one), so the A to B trip takes about 5:37. Carts run in real time. Distances are real (from OpenStreetMap).
 - The stop positions in `STOPS` are approximate. GPS places you on the nearest cart road. Some browsers block GPS for a file opened directly; use the `localhost` steps above if that happens.
 - OpenStreetMap may miss some campus roads or buildings, and carts may use any road on a loop between A and B.
 - Carts are drawn on the ground, so in 3D a tall building does not hide a cart behind it.

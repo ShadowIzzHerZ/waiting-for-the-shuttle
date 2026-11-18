@@ -3,8 +3,8 @@
 
 // ---------- config ----------
 const GAPS=[69,105,43,64,94,54,159,92,107,68,42,73,55,104,39,83,34,50,44,76,31,62,52,144,34,39,109,67,80,124,32,43,41,93,88,81,155,53,276,78,175,111,664,356,293,30,71,258,72,308,209,110,60,207,61,98,237,167,144,180,144,100,59,187,461,70,135,31,372,76,160,165,128]; // our 73 stopwatch gaps (s)
-const SPEEDS=[12,36,1];                        // simulated seconds per real second (button cycles)
-const SPEED_KMH=[10,15];                       // cart speed range in km/h (each cart picks one)
+const SIM_SPEED=1;                             // carts run in real time
+const SPEED_KMH=[16.5,19.5];                   // km/h; 18 km/h average makes the A-B trip about 5:37
 const P_FULL=0.65,P_PICKUP=0.30,P_DETOUR=0.30; // carts leaving full / filling on the way / taking another path
 const CORNER=6;                                // corner rounding radius in metres
 // Stops [lng, lat]. shortcut: A and B are the old approximate GPS anchors and 54 is not placed yet; replace with measured spots.
@@ -139,7 +139,7 @@ function routeDist(r,sn,s0){
 
 // ---------- state ----------
 const $=id=>document.getElementById(id);
-let me=null,gpsFix=null,watchId=null,devPlace=null,dest=null,paused=false,spi=0,best=null,simClock=0,toastT=null,rideFor=null,threeD=true;
+let riding=null,follow=false,me=null,gpsFix=null,watchId=null,devPlace=null,dest=null,paused=false,spi=0,best=null,simClock=0,toastT=null,rideFor=null,threeD=true;
 function toast(msg,ms){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),ms||2600);}
 const put=(id,s)=>{const el=$(id);if(el.textContent!==s)el.textContent=s;};
 const cid=c=>String(c.id).padStart(2,'0');
@@ -162,6 +162,11 @@ function evaluate(){
 const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
 const medGap=GAPS.slice().sort((a,b)=>a-b)[GAPS.length>>1];
 function update(){
+  if(riding){const c=riding,end=c.rideEnd,left=Math.max(0,(end-c.s)/c.v);   // on a cart: count down to where you get off
+    $('next').classList.remove('none');put('chip','On Cart '+cid(c));put('via','to '+c.rideTo);put('cdl','to go');
+    put('cd',mmss(left));put('ns',follow?'The map is following your cart':'Tap the location button to follow your cart');
+    put('rt',mmss(left));put('rd',c.rideTo);if(ready)map.getSource('coming').setData(EMPTY);return;}
+  put('cdl','min wait');
   if(!me)return;
   const list=evaluate(),good=list.filter(c=>c.ok);
   best=good[0]||null;
@@ -175,6 +180,10 @@ function update(){
   put('rt',ride?mmss((best.dd-best.dm)/best.v):'--:--');put('rd',dest?label(dest):'No destination');
   put('km',ride?((best.dd-best.dm)/1000).toFixed(1)+' km':'');
   setRide(ride?best:null);
+  if(ready){const fs=list.map(c=>{const r=c.route,a=posAt(r,c.s),b=posAt(r,c.dm),cs=[toLL(a.x,a.y)];
+      for(let i=1;i<r.cum.length&&r.cum[i]<c.dm;i++)if(r.cum[i]>c.s)cs.push(toLL(...r.pts[i]));cs.push(toLL(b.x,b.y));
+      return {type:'Feature',properties:{ok:c.ok},geometry:{type:'LineString',coordinates:cs}};});
+    map.getSource('coming').setData({type:'FeatureCollection',features:fs});}
   const rows=list.slice(0,3),ul=$('list');
   while(ul.children.length<rows.length){const li=document.createElement('li');li.innerHTML='<i></i><div><div class="n"><span></span><em></em></div><div class="s"></div></div><div class="e"><span></span><small></small></div>';ul.appendChild(li);}
   while(ul.children.length>rows.length)ul.lastChild.remove();
@@ -202,6 +211,8 @@ map.on('load',()=>{
   map.addLayer({id:'road',type:'line',source:'campus',filter:kind('road'),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#e2dbcf','line-width':['interpolate',['linear'],['zoom'],14,1.5,19,11]}});
   map.addLayer({id:'path',type:'line',source:'campus',filter:kind('path'),paint:{'line-color':'#cfc6b8','line-width':1,'line-dasharray':[2,2]}});
   map.addLayer({id:'net',type:'line',source:'net',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#b9aea0','line-width':['interpolate',['linear'],['zoom'],14,2,19,9]}});
+  map.addSource('coming',{type:'geojson',data:EMPTY});   // carts coming to your place: dashed, on the road itself
+  map.addLayer({id:'coming',type:'line',source:'coming',layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':['case',['get','ok'],'#15803d','#78716c'],'line-opacity':['case',['get','ok'],.9,.6],'line-width':['interpolate',['linear'],['zoom'],14,2,19,6],'line-dasharray':[2,1.5]}});
   map.addLayer({id:'ride',type:'line',source:'ride',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#6b1d12','line-width':['interpolate',['linear'],['zoom'],14,3,19,10]}});
   map.addLayer({id:'bld',type:'fill-extrusion',source:'campus',filter:kind('building'),paint:{'fill-extrusion-color':['match',['get','bt'],'academic','#d6cfc2','hostel','#d9cbbf','#ddd7cc'],'fill-extrusion-height':['get','h'],'fill-extrusion-opacity':.9}});
   map.addLayer({id:'outline-line',type:'line',source:'campus',filter:kind('outline'),paint:{'line-color':'#6b1d12','line-width':1.5,'line-opacity':.5}});
@@ -234,8 +245,10 @@ function drawCart(c){
   const r=c.ok?11:8;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fillStyle=c.full?'#78716c':'#15803d';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
   if(c.full){ctx.fillStyle='#fff';ctx.font='600 9px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(c.id,0,.5);}
   else{ctx.rotate(Math.atan2(q.y-p.y,q.x-p.x));ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(r*.5,0);ctx.lineTo(-r*.3,-r*.4);ctx.lineTo(-r*.3,r*.4);ctx.fill();}   // arrow: which way it is going
+  if(c===riding){ctx.globalAlpha=1;ctx.strokeStyle='#2563eb';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,17,0,7);ctx.stroke();}   // you are on this one
   ctx.restore();
-  if(c.ok&&c.eta!==null)chip('C-'+cid(c)+' · '+mmss(c.eta),p.x,p.y-24,'#15803d','#fff');
+  if(c===riding)chip('YOU',p.x,p.y-26,'#2563eb','#fff');
+  else if(c.ok&&c.eta!==null)chip('C-'+cid(c)+' · '+mmss(c.eta),p.x,p.y-24,'#15803d','#fff');
 }
 function drawEnds(){
   [[A_NODE,'A','#1c1917'],[V_NODE,'54','#fff'],[B_NODE,'B','#6b1d12']].forEach(([k,l,bg])=>{if(!k)return;const p=P(...N[k]),light=bg==='#fff';
@@ -246,7 +259,7 @@ function drawEnds(){
   if(gpsFix){const p=map.project(gpsFix.ll);   // just the blue dot (no accuracy ring)
     if(gpsFix.heading!==null){const h=(gpsFix.heading-map.getBearing())*Math.PI/180;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(h);ctx.fillStyle='#2563eb';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(-5,-7);ctx.lineTo(5,-7);ctx.fill();ctx.restore();} // which way you are walking
     ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fillStyle='#2563eb';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
-  if(me){const p=P(me.x,me.y);ctx.fillStyle='rgba(107,29,18,.18)';ctx.beginPath();ctx.arc(p.x,p.y,15,0,7);ctx.fill();
+  if(me&&!riding){const p=P(me.x,me.y);ctx.fillStyle='rgba(107,29,18,.18)';ctx.beginPath();ctx.arc(p.x,p.y,15,0,7);ctx.fill();
     ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#6b1d12';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();chip($('psel').value==='gps'?'YOU ARE HERE':'PICKUP: '+pickName,p.x,p.y+26>H-34?p.y-26:p.y+26,'#1c1917','#fff');}
 }
 let t0=performance.now(),lastEval=0;
@@ -255,12 +268,20 @@ function frame(now){
   if(now-t0<30)return;                            // about 30 fps
   const dt=Math.min(0.1,(now-t0)/1000);t0=now;
   if(!paused){
-    const sd=dt*SPEEDS[spi];simClock+=sd;
+    const sd=dt*SIM_SPEED;simClock+=sd;
     for(const c of carts){c.s+=c.v*sd;if(c.flash>0)c.flash=Math.max(0,c.flash-dt*1.2);
       if(c.pickupAt!==null&&c.s>=c.pickupAt){c.full=true;c.pickupAt=null;c.flash=1;}}
     if(carts.some(c=>c.s>=c.route.len))carts=carts.filter(c=>c.s<c.route.len);
     for(const d of ['A','B']){spawnT[d]-=sd;if(spawnT[d]<=0){spawn(d,0);spawnT[d]+=nextGap();}}
   }
+  // get on: the empty cart you are waiting for has reached you
+  if(!riding&&best&&best.ok&&carts.includes(best)&&best.s>=best.dm-1){const c=riding=best;follow=true;stopGps();
+    c.rideEnd=dest&&c.dd!==null?c.dd:c.route.len;c.rideTo=dest&&c.dd!==null?label(dest):END_NAME[c.dir==='A'?'B':'A'];
+    c.pickupAt=null;toast('You got on Cart '+cid(c),2200);if(navigator.vibrate)navigator.vibrate(30);update();}
+  if(riding){const c=riding,q=posAt(c.route,Math.min(c.s,c.rideEnd));
+    if(follow)map.jumpTo({center:toLL(q.x,q.y)});
+    if(c.s>=c.rideEnd||!carts.includes(c)){riding=null;follow=false;me=snap(q.x,q.y);dest=null;$('dsel').value='';
+      toast('You have arrived at '+c.rideTo,3000);if(navigator.vibrate)navigator.vibrate([30,60,30]);update();}}
   if(now-lastEval>200){update();lastEval=now;}
   put('sim',paused?'Paused':mmss(simClock));
   map.triggerRepaint();                           // carts moved: draw them with the next map frame
@@ -269,14 +290,6 @@ function frame(now){
 function drawOverlay(){
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   drawEnds();
-  // each cart coming to your place: a dashed line along the road from the cart to you
-  ctx.save();ctx.setLineDash([6,5]);ctx.lineWidth=3;ctx.lineCap='round';
-  for(const c of carts){if(c.eta===null||c.dm===undefined)continue;ctx.strokeStyle=c.ok?'rgba(21,128,61,.75)':'rgba(120,113,108,.35)';ctx.beginPath();
-    const r=c.route,a=posAt(r,c.s),b=posAt(r,c.dm);let p=P(a.x,a.y);ctx.moveTo(p.x,p.y);   // cart, then the route's corners up to you: few points, cheap per frame
-    for(let i=1;i<r.cum.length&&r.cum[i]<c.dm;i++)if(r.cum[i]>c.s){p=P(...r.pts[i]);ctx.lineTo(p.x,p.y);}
-    p=P(b.x,b.y);ctx.lineTo(p.x,p.y);
-    ctx.stroke();}
-  ctx.restore();
   for(const on of [false,true])for(const c of carts)if(c.ok===on)drawCart(c);   // carts you can take are drawn on top
 }
 map.on('render',drawOverlay);
@@ -305,7 +318,12 @@ wrap.addEventListener('contextmenu',e=>e.preventDefault());
 
 // ---------- buttons ----------
 $('pause').onclick=()=>{paused=!paused;$('pico').setAttribute('d',paused?'M7 4l13 8-13 8z':'M6 4h4v16H6zM14 4h4v16h-4z');$('pause').setAttribute('aria-label',paused?'Resume simulation':'Pause simulation');};
-$('spd').onclick=e=>{spi=(spi+1)%SPEEDS.length;e.currentTarget.textContent=SPEEDS[spi]+'x';};
+// zoom button: 1x = the whole route, then 2x and 4x closer, centred on you (or your cart)
+const ZOOMS=[1,2,4];let zi=0;
+$('spd').onclick=e=>{zi=(zi+1)%ZOOMS.length;e.currentTarget.textContent=ZOOMS[zi]+'x';
+  const base=(map.cameraForBounds(BOUNDS,{padding:20})||{}).zoom||map.getZoom(),c=riding?posAt(riding.route,riding.s):me;
+  if(!zi){map.fitBounds(BOUNDS,{padding:20,duration:500});return;}
+  map.easeTo({zoom:base+Math.log2(ZOOMS[zi]),center:c?toLL(c.x,c.y):undefined,duration:500});};
 $('fit').onclick=()=>map.fitBounds(BOUNDS,{padding:{top:40,bottom:40,left:20,right:60},pitch:threeD?50:0,bearing:0});
 $('d3').onclick=e=>{threeD=!threeD;e.currentTarget.textContent=threeD?'2D':'3D';
   if(ready)map.setPaintProperty('bld','fill-extrusion-height',threeD?['get','h']:0);map.easeTo({pitch:threeD?50:0,duration:500});};
@@ -320,7 +338,7 @@ const LAST_FIX='cartLastFix';
 let gotFix=false,firstCentre=true,touchedMap=false,centredAt=0;
 function gpsBtn(state){const b=$('gps');b.classList.toggle('busy',state==='asking');b.classList.toggle('on',state==='on');}
 function onPos(pos){
-  if(watchId===null)return;                                                 // a late fix after you picked a place by hand
+  if(watchId===null||riding)return;                                                 // a late fix after you picked a place by hand
   const ll=[pos.coords.longitude,pos.coords.latitude],acc=Math.round(pos.coords.accuracy),sp=pos.coords.speed,hd=pos.coords.heading;
   gotFix=true;gpsBtn('on');
   gpsFix={ll,acc,heading:typeof hd==='number'&&!isNaN(hd)&&(sp||0)>0.6?hd:null};   // heading only while moving
@@ -344,8 +362,8 @@ function startGps(){
   follow(true);
 }
 function stopGps(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;gpsFix=null;gpsBtn('off');}
-$('gps').onclick=()=>{if(watchId!==null){stopGps();toast('Live location off');}else startGps();};
-['dragstart','zoomstart','rotatestart'].forEach(ev=>map.on(ev,e=>{if(e.originalEvent)touchedMap=true;}));
+$('gps').onclick=()=>{if(riding){follow=true;update();return;}if(watchId!==null){stopGps();toast('Live location off');}else startGps();};
+['dragstart','zoomstart','rotatestart'].forEach(ev=>map.on(ev,e=>{if(e.originalEvent){touchedMap=true;if(ev==='dragstart')follow=false;}}));
 try{const l=JSON.parse(localStorage.getItem(LAST_FIX));if(l&&Date.now()-l.t<12*3600e3&&inside(l.ll)){setMe(snap(...toXY(l.ll)));map.jumpTo({center:l.ll,zoom:16.5});}}catch(_){} // open where this phone last was (12 h)
 startGps();
 
