@@ -204,6 +204,8 @@ map.on('load',()=>{
   map.addLayer({id:'ride',type:'line',source:'ride',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#6b1d12','line-width':['interpolate',['linear'],['zoom'],14,3,19,10]}});
   map.addLayer({id:'bld',type:'fill-extrusion',source:'campus',filter:kind('building'),paint:{'fill-extrusion-color':['match',['get','bt'],'academic','#d6cfc2','hostel','#d9cbbf','#ddd7cc'],'fill-extrusion-height':['get','h'],'fill-extrusion-opacity':.9}});
   map.addLayer({id:'outline-line',type:'line',source:'campus',filter:kind('outline'),paint:{'line-color':'#6b1d12','line-width':1.5,'line-opacity':.5}});
+  // no zooming out past a little more than the whole route
+  const fitZ=map.cameraForBounds(BOUNDS,{padding:20});if(fitZ&&fitZ.zoom)map.setMinZoom(fitZ.zoom-0.5);
   ready=true;rideFor=undefined;update();
 });
 map.on('error',e=>console.warn(e&&e.error));
