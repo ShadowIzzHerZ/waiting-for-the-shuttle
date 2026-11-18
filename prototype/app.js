@@ -280,7 +280,7 @@ function frame(now){
     c.rideEnd=dest&&c.dd!==null?c.dd:c.route.len;c.rideTo=dest&&c.dd!==null?label(dest):END_NAME[c.dir==='A'?'B':'A'];
     c.pickupAt=null;toast('You got on Cart '+cid(c),2200);if(navigator.vibrate)navigator.vibrate(30);update();}
   if(riding){const c=riding,q=posAt(c.route,Math.min(c.s,c.rideEnd));
-    if(follow)map.jumpTo({center:toLL(q.x,q.y)});
+    if(follow&&!map.isMoving())map.jumpTo({center:toLL(q.x,q.y)});   // don't cut off a zoom in progress
     if(c.s>=c.rideEnd||!carts.includes(c)){riding=null;follow=false;me=snap(q.x,q.y);dest=null;$('dsel').value='';
       toast('You have arrived at '+c.rideTo,3000);if(navigator.vibrate)navigator.vibrate([30,60,30]);update();}}
   if(now-lastEval>200){update();lastEval=now;}
@@ -319,12 +319,16 @@ wrap.addEventListener('contextmenu',e=>e.preventDefault());
 
 // ---------- buttons ----------
 $('pause').onclick=()=>{paused=!paused;$('pico').setAttribute('d',paused?'M7 4l13 8-13 8z':'M6 4h4v16H6zM14 4h4v16h-4z');$('pause').setAttribute('aria-label',paused?'Resume simulation':'Pause simulation');};
-// zoom button: 1x = the whole route, then 2x and 4x closer, centred on you (or your cart)
-const ZOOMS=[1,2,4];let zi=0;
-$('spd').onclick=e=>{zi=(zi+1)%ZOOMS.length;e.currentTarget.textContent=ZOOMS[zi]+'x';
-  const base=(map.cameraForBounds(BOUNDS,{padding:20})||{}).zoom||map.getZoom(),c=riding?posAt(riding.route,riding.s):me;
-  if(!zi){map.fitBounds(BOUNDS,{padding:20,duration:500});return;}
-  map.easeTo({zoom:base+Math.log2(ZOOMS[zi]),center:c?toLL(c.x,c.y):undefined,duration:500});};
+// zoom button: 1x = the whole route; each tap goes to the next step in (2x, 4x, 8x) from where the map is now, then back to 1x
+let FITZ=null;   // zoom that shows the whole route, worked out once (it shifts with tilt and bearing otherwise)
+const ZOOMS=[1,2,4,8],fitZoom=()=>FITZ||(FITZ=map.cameraForBounds(BOUNDS,{padding:20,bearing:0,pitch:0}).zoom);
+const zoomNow=()=>Math.pow(2,map.getZoom()-fitZoom());
+function zoomLabel(){const f=zoomNow();let best=ZOOMS[0];ZOOMS.forEach(z=>{if(Math.abs(Math.log2(z/f))<Math.abs(Math.log2(best/f)))best=z;});put('spd',best+'x');}
+map.on('zoomend',zoomLabel);map.once('load',zoomLabel);
+$('spd').onclick=()=>{const f=zoomNow(),next=ZOOMS.find(z=>z>f*1.15);
+  if(!next){map.fitBounds(BOUNDS,{padding:20,duration:500});return;}
+  const c=riding?posAt(riding.route,riding.s):me;
+  map.easeTo({zoom:fitZoom()+Math.log2(next),center:c?toLL(c.x,c.y):undefined,duration:500});};
 $('fit').onclick=()=>map.fitBounds(BOUNDS,{padding:{top:40,bottom:40,left:20,right:60},pitch:threeD?50:0,bearing:0});
 $('d3').onclick=e=>{threeD=!threeD;e.currentTarget.textContent=threeD?'2D':'3D';
   if(ready)map.setPaintProperty('bld','fill-extrusion-height',threeD?['get','h']:0);map.easeTo({pitch:threeD?50:0,duration:500});};
