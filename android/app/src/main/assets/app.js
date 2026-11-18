@@ -191,7 +191,8 @@ const NET={type:'FeatureCollection',features:E.map(([a,b])=>({type:'Feature',pro
 // opening view: the A-B route, not every loop
 const BOUNDS=(()=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;mainPath.forEach(k=>{const [x,y]=toLL(...N[k]);x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);});return [[x0,y0],[x1,y1]];})();
 const wrap=$('mapwrap'),cv=$('c'),ctx=cv.getContext('2d');let W=0,H=0,dpr=1,ready=false;
-const map=new maplibregl.Map({container:'map',bounds:BOUNDS,fitBoundsOptions:{padding:{top:40,bottom:40,left:20,right:60}},pitch:50,maxPitch:70,maxZoom:20,attributionControl:false,bearingSnap:0,
+const map=new maplibregl.Map({container:'map',pixelRatio:Math.min(2,window.devicePixelRatio||1),fadeDuration:0,renderWorldCopies:false, // 2x is sharp enough and much lighter than 3x phones
+  bounds:BOUNDS,fitBoundsOptions:{padding:{top:40,bottom:40,left:20,right:60}},pitch:50,maxPitch:70,maxZoom:20,attributionControl:false,bearingSnap:0,
   style:{version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#ece6da'}}]}});
 const kind=k=>['==',['get','kind'],k];
 map.on('load',()=>{
@@ -242,8 +243,7 @@ function drawEnds(){
     ctx.fillStyle=light?'#1c1917':'#fff';ctx.font='600 '+(l.length>1?10:12)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(l,p.x,p.y+.5);
     chip(END_NAME[l]||'Stop 54 (via)',p.x,p.y-26,bg,light?'#1c1917':'#fff',light?'#b9aea0':null);});
   if(dest){const p=P(dest.x,dest.y);ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#6b1d12';ctx.lineWidth=3;ctx.stroke();}
-  if(gpsFix){const p=map.project(gpsFix.ll),e=map.project([gpsFix.ll[0]+gpsFix.acc/KX,gpsFix.ll[1]]),r=Math.max(8,Math.hypot(e.x-p.x,e.y-p.y));
-    ctx.fillStyle='rgba(37,99,235,.15)';ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.fill();
+  if(gpsFix){const p=map.project(gpsFix.ll);   // just the blue dot (no accuracy ring)
     if(gpsFix.heading!==null){const h=(gpsFix.heading-map.getBearing())*Math.PI/180;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(h);ctx.fillStyle='#2563eb';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(-5,-7);ctx.lineTo(5,-7);ctx.fill();ctx.restore();} // which way you are walking
     ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fillStyle='#2563eb';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
   if(me){const p=P(me.x,me.y);ctx.fillStyle='rgba(107,29,18,.18)';ctx.beginPath();ctx.arc(p.x,p.y,15,0,7);ctx.fill();
@@ -272,7 +272,9 @@ function drawOverlay(){
   // each cart coming to your place: a dashed line along the road from the cart to you
   ctx.save();ctx.setLineDash([6,5]);ctx.lineWidth=3;ctx.lineCap='round';
   for(const c of carts){if(c.eta===null||c.dm===undefined)continue;ctx.strokeStyle=c.ok?'rgba(21,128,61,.75)':'rgba(120,113,108,.35)';ctx.beginPath();
-    for(let d=c.s,first=true;;d+=8){const e=Math.min(d,c.dm),q=posAt(c.route,e),p=P(q.x,q.y);first?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);first=false;if(e>=c.dm)break;}
+    const r=c.route,a=posAt(r,c.s),b=posAt(r,c.dm);let p=P(a.x,a.y);ctx.moveTo(p.x,p.y);   // cart, then the route's corners up to you: few points, cheap per frame
+    for(let i=1;i<r.cum.length&&r.cum[i]<c.dm;i++)if(r.cum[i]>c.s){p=P(...r.pts[i]);ctx.lineTo(p.x,p.y);}
+    p=P(b.x,b.y);ctx.lineTo(p.x,p.y);
     ctx.stroke();}
   ctx.restore();
   for(const on of [false,true])for(const c of carts)if(c.ok===on)drawCart(c);   // carts you can take are drawn on top
@@ -358,7 +360,12 @@ $('devX').onclick=()=>{$('dev').hidden=true;devPlace=null;};
 
 // ---------- bottom sheet: drag the handle down (or tap it) to show only the countdown, up to show it all ----------
 {const sh=$('sheet'),g=$('grab');let y0=null;
- const setMin=on=>{sh.classList.toggle('min',on);g.setAttribute('aria-expanded',String(!on));g.setAttribute('aria-label',on?'Show more':'Show less');};
+ const setMin=on=>{if(sh.classList.contains('min')===on)return;
+   // animate the height: measure both sizes, then slide from one to the other (map grows or shrinks with it)
+   const h0=sh.offsetHeight;sh.classList.toggle('min',on);const h1=sh.offsetHeight;
+   if(!matchMedia('(prefers-reduced-motion: reduce)').matches){sh.style.overflow='hidden';sh.style.height=h0+'px';sh.offsetHeight;sh.style.transition='height .3s cubic-bezier(.2,.8,.2,1)';sh.style.height=h1+'px';
+     const done=()=>{sh.style.height=sh.style.transition=sh.style.overflow='';sh.removeEventListener('transitionend',done);};sh.addEventListener('transitionend',done);setTimeout(done,450);}
+  g.setAttribute('aria-expanded',String(!on));g.setAttribute('aria-label',on?'Show more':'Show less');};
  g.onclick=()=>{if(y0===null)setMin(!sh.classList.contains('min'));};
  sh.addEventListener('pointerdown',e=>{if(e.target===g||e.target.closest('#next')){y0=e.clientY;}});
  addEventListener('pointerup',e=>{if(y0===null)return;const dy=e.clientY-y0;if(dy>30)setMin(true);else if(dy<-30)setMin(false);else if(e.target===g)setMin(!sh.classList.contains('min'));setTimeout(()=>{y0=null},0);});}
