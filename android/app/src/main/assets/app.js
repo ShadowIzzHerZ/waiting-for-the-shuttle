@@ -163,7 +163,7 @@ const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%
 const medGap=GAPS.slice().sort((a,b)=>a-b)[GAPS.length>>1];
 function update(){
   if(riding){const c=riding,end=c.rideEnd,left=Math.max(0,(end-c.s)/c.v);   // on a cart: count down to where you get off
-    $('next').classList.remove('none');put('chip','On Cart '+cid(c));put('via','to '+c.rideTo);put('cdl','to go');
+    $('next').classList.remove('none','noride');put('chip','On Cart '+cid(c));put('via','to '+c.rideTo);put('cdl','to go');
     put('cd',mmss(left));put('ns',follow?'The map is following your cart':'Tap the location button to follow your cart');
     put('rt',mmss(left));put('rd',c.rideTo);if(ready)map.getSource('coming').setData(EMPTY);return;}
   put('cdl','min wait');
@@ -175,8 +175,9 @@ function update(){
   const esc=s=>s.replace(/[&<>"]/g,ch=>'&#'+ch.charCodeAt(0)+';');
   html('dl','From <b>'+esc(label(me))+'</b> → '+(dest?esc(label(dest)):'pick a destination'));
   if(best){put('chip','Cart '+cid(best));put('via','to '+END_NAME[best.dir==='A'?'B':'A']);put('cd',mmss(best.eta));put('ns','Empty cart, will pass you');}
-  else{put('chip','No empty cart');put('via','');put('cd','--:--');put('ns','One leaves about every '+mmss(medGap));}
+  else{put('chip','No empty cart');put('via','');put('cd','--:--');put('ns','No empty cart on the way right now. One usually comes every '+mmss(medGap)+'.');}
   const ride=best&&dest&&best.dd!==null;
+  $('next').classList.toggle('noride',!ride);
   put('rt',ride?mmss((best.dd-best.dm)/best.v):'--:--');put('rd',dest?label(dest):'No destination');
   put('km',ride?((best.dd-best.dm)/1000).toFixed(1)+' km':'');
   setRide(ride?best:null);
