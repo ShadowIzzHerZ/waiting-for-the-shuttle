@@ -49,6 +49,10 @@ els.forEach(e=>{if(e.type!=='way')return;const t=e.tags||{},g=e.geometry,closed=
     if(t.name)PLACES.push([...toXY(g[g.length>>1]),t.name]);}
   else if((t.leisure||t.landuse)&&closed&&inside(mid(g)))feats.push({type:'Feature',properties:{kind:'green'},geometry:{type:'Polygon',coordinates:[g]}});});
 const CAMPUS={type:'FeatureCollection',features:feats};
+// The old isometric drawing, placed on the real map. Corners [lng,lat] (top-left, top-right, bottom-right, bottom-left) come from fitting
+// the drawing's road network (map/net.json) to the OSM roads as a 30 degree isometric view plus a similarity (median error about 15 m).
+// shortcut: the drawing is not to scale, so roads can be 20-40 m off in places; a per-area warp would be needed to match everywhere.
+const DRAWING_CORNERS=[[75.7011554,31.2606697],[75.7117403,31.2586432],[75.7089308,31.2477729],[75.6983459,31.2497995]];
 
 // ---------- graph ----------
 // Carts only use roads that lie on some A-B route, so dead-end spurs are pruned from the network.
@@ -193,6 +197,8 @@ const map=new maplibregl.Map({container:'map',bounds:BOUNDS,fitBoundsOptions:{pa
   style:{version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#ece6da'}}]}});
 const kind=k=>['==',['get','kind'],k];
 map.on('load',()=>{
+  if(window.DRAWING_IMG){map.addSource('drawing',{type:'image',url:window.DRAWING_IMG,coordinates:DRAWING_CORNERS});
+    map.addLayer({id:'drawing',type:'raster',source:'drawing',layout:{visibility:'none'},paint:{'raster-opacity':1,'raster-fade-duration':0}});}
   map.addSource('campus',{type:'geojson',data:CAMPUS});map.addSource('net',{type:'geojson',data:NET});map.addSource('ride',{type:'geojson',data:EMPTY});
   map.addLayer({id:'outline',type:'fill',source:'campus',filter:kind('outline'),paint:{'fill-color':'#f8f6f1'}});
   map.addLayer({id:'green',type:'fill',source:'campus',filter:kind('green'),paint:{'fill-color':'#dfe8d3'}});
@@ -286,6 +292,14 @@ wrap.addEventListener('contextmenu',e=>e.preventDefault());
 $('pause').onclick=()=>{paused=!paused;$('pico').setAttribute('d',paused?'M7 4l13 8-13 8z':'M6 4h4v16H6zM14 4h4v16h-4z');$('pause').setAttribute('aria-label',paused?'Resume simulation':'Pause simulation');};
 $('spd').onclick=e=>{spi=(spi+1)%SPEEDS.length;e.currentTarget.textContent=SPEEDS[spi]+'x';};
 $('fit').onclick=()=>map.fitBounds(BOUNDS,{padding:{top:40,bottom:40,left:20,right:60},pitch:threeD?50:0,bearing:0});
+// "Old" button: the 2D OpenStreetMap map laid see-through on top of our old drawing
+let oldOn=false;
+function setOld(on){oldOn=on;if(!ready||!map.getLayer('drawing'))return;$('old').classList.toggle('on',on);
+  map.setLayoutProperty('drawing','visibility',on?'visible':'none');
+  ['outline','green'].forEach(l=>map.setLayoutProperty(l,'visibility',on?'none':'visible'));
+  map.setPaintProperty('road','line-opacity',on?.55:1);map.setPaintProperty('bld','fill-extrusion-opacity',on?.35:.9);
+  if(on){threeD=false;$('d3').textContent='3D';map.setPaintProperty('bld','fill-extrusion-height',0);map.easeTo({pitch:0,bearing:0,duration:500});}}
+$('old').onclick=()=>setOld(!oldOn);
 $('d3').onclick=e=>{threeD=!threeD;e.currentTarget.textContent=threeD?'2D':'3D';
   if(ready)map.setPaintProperty('bld','fill-extrusion-height',threeD?['get','h']:0);map.easeTo({pitch:threeD?50:0,duration:500});};
 $('stops').textContent=V_NODE?'Stop A · Stop 54 · Stop B':END_NAME.A+' · '+END_NAME.B;
