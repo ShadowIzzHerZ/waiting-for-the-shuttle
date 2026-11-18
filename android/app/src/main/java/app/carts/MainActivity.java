@@ -13,7 +13,8 @@ import android.webkit.WebView;
 
 public class MainActivity extends Activity {
   WebView w;
-  GeolocationPermissions.Callback geoCb; String geoOrigin;
+  // every page request waiting on the Android permission answer (the page asks for a quick fix and a watch at once)
+  final java.util.List<GeolocationPermissions.Callback> geoCbs = new java.util.ArrayList<>(); String geoOrigin;
   @Override protected void onCreate(Bundle b) {
     super.onCreate(b);
     getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFFF8F6F1));
@@ -27,9 +28,10 @@ public class MainActivity extends Activity {
     s.setGeolocationEnabled(true);
     w.setWebChromeClient(new WebChromeClient() {
       @Override public void onGeolocationPermissionsShowPrompt(String o, GeolocationPermissions.Callback cb) {
-        // ask for location only when the user taps Locate me, not at launch
+        // the page asks for location when it opens (live GNSS starts at launch)
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) { cb.invoke(o, true, false); return; }
-        geoCb = cb; geoOrigin = o;
+        geoCbs.add(cb); geoOrigin = o;
+        if (geoCbs.size() > 1) return; // already asking
         requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
       }
     });
@@ -37,9 +39,9 @@ public class MainActivity extends Activity {
     setContentView(w);
   }
   @Override public void onRequestPermissionsResult(int code, String[] p, int[] g) {
-    if (geoCb == null) return;
     boolean ok = false; for (int r : g) ok |= r == PackageManager.PERMISSION_GRANTED;
-    geoCb.invoke(geoOrigin, ok, false); geoCb = null;
+    for (GeolocationPermissions.Callback c : geoCbs) c.invoke(geoOrigin, ok, false);
+    geoCbs.clear();
   }
   @Override protected void onPause() { super.onPause(); w.onPause(); }   // stop the animation loop in the background
   @Override protected void onResume() { super.onResume(); w.onResume(); }

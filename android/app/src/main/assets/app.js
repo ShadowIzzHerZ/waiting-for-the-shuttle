@@ -240,6 +240,7 @@ function drawEnds(){
   if(dest){const p=P(dest.x,dest.y);ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#6b1d12';ctx.lineWidth=3;ctx.stroke();}
   if(gpsFix){const p=map.project(gpsFix.ll),e=map.project([gpsFix.ll[0]+gpsFix.acc/KX,gpsFix.ll[1]]),r=Math.max(8,Math.hypot(e.x-p.x,e.y-p.y));
     ctx.fillStyle='rgba(37,99,235,.15)';ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.fill();
+    if(gpsFix.heading!==null){const h=(gpsFix.heading-map.getBearing())*Math.PI/180;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(h);ctx.fillStyle='#2563eb';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(-5,-7);ctx.lineTo(5,-7);ctx.fill();ctx.restore();} // which way you are walking
     ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fillStyle='#2563eb';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
   if(me){const p=P(me.x,me.y);ctx.fillStyle='rgba(107,29,18,.18)';ctx.beginPath();ctx.arc(p.x,p.y,15,0,7);ctx.fill();
     ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#6b1d12';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();chip('YOU ARE HERE',p.x,p.y+26,'#1c1917','#fff');}
@@ -274,7 +275,7 @@ map.on('click',e=>{
     try{localStorage.setItem('devStops',JSON.stringify(d));}catch(_){toast('Could not save the stop in this browser');return;}
     toast('Point '+devPlace+' placed, reloading',1200);devPlace=null;setTimeout(()=>location.reload(),900);return;}
   const sn=pick(e);if(sn)setDest(sn);});
-map.on('contextmenu',e=>{const sn=pick(e);if(sn){if(watchId!==null)$('gps').click();setMe(sn);toast('You are near '+label(sn),1800);if(navigator.vibrate)navigator.vibrate(15);}});
+map.on('contextmenu',e=>{const sn=pick(e);if(sn){if(watchId!==null)stopGps();setMe(sn);toast('You are near '+label(sn),1800);if(navigator.vibrate)navigator.vibrate(15);}});
 // touch long-press: browsers differ on contextmenu, so time it ourselves
 let pressT=null;
 map.on('touchstart',e=>{clearTimeout(pressT);if(e.originalEvent.touches.length!==1)return;pressT=setTimeout(()=>map.fire('contextmenu',{lngLat:e.lngLat,point:e.point}),550);});
@@ -290,23 +291,40 @@ $('d3').onclick=e=>{threeD=!threeD;e.currentTarget.textContent=threeD?'2D':'3D';
 $('stops').textContent=V_NODE?'Stop A · Stop 54 · Stop B':END_NAME.A+' · '+END_NAME.B;
 if(!V_NODE)$('dsel').options[2].remove();
 $('dsel').onchange=e=>{const k={A:A_NODE,V:V_NODE,B:B_NODE}[e.target.value];if(k)setDest(snap(...N[k]),true);else if(!e.target.value)setDest(null);};
-// live GNSS: keeps following you until you tap the button again (or long-press to place yourself)
-$('gps').onclick=()=>{
-  const btn=$('gps'),stop=()=>{if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;gpsFix=null;btn.classList.remove('busy','on');};
-  if(watchId!==null){stop();toast('Live location off');return;}
+// live GNSS, as in lpu-wayfinder: a quick rough fix first (the phone's last known spot), then high-accuracy GPS;
+// if GPS is too slow (indoors) fall back to network location; a brief GPS drop keeps the last spot.
+// Starts when the app opens; the button turns it off and on again.
+const LAST_FIX='cartLastFix';
+let gotFix=false,firstCentre=true,touchedMap=false,centredAt=0;
+function gpsBtn(state){const b=$('gps');b.classList.toggle('busy',state==='asking');b.classList.toggle('on',state==='on');}
+function onPos(pos){
+  const ll=[pos.coords.longitude,pos.coords.latitude],acc=Math.round(pos.coords.accuracy),sp=pos.coords.speed,hd=pos.coords.heading;
+  gotFix=true;gpsBtn('on');
+  gpsFix={ll,acc,heading:typeof hd==='number'&&!isNaN(hd)&&(sp||0)>0.6?hd:null};   // heading only while moving
+  if(!inside(ll)){if(firstCentre&&acc<=150){firstCentre=false;toast('You seem to be outside the campus (±'+acc+' m)',4200);}return;}
+  if(acc>500)return;                                                        // too rough to place you
+  try{localStorage.setItem(LAST_FIX,JSON.stringify({ll,t:Date.now()}));}catch(_){}
+  setMe(snap(...toXY(ll)));
+  if(firstCentre){firstCentre=false;centredAt=Date.now();map.easeTo({center:ll,zoom:Math.max(map.getZoom(),16.5),duration:300});toast((acc>80?'Rough location, ±':'Live location on, ±')+acc+' m');}
+  else if(!touchedMap&&acc<=60&&Date.now()-centredAt<60000){const c=map.project(ll);if(Math.hypot(c.x-W/2,c.y-H/2)>60)map.easeTo({center:ll,duration:300});} // first minute: stay on you while GPS sharpens
+}
+function startGps(){
   if(!navigator.geolocation){toast('GPS is not available here. Long-press the map to set where you are',4200);return;}
-  btn.classList.add('busy');let first=true;
-  watchId=navigator.geolocation.watchPosition(pos=>{
-    const ll=[pos.coords.longitude,pos.coords.latitude],acc=Math.round(pos.coords.accuracy);
-    btn.classList.remove('busy');btn.classList.add('on');gpsFix={ll,acc};
-    if(!inside(ll)){if(first)toast('You seem to be outside the campus (\u00b1'+acc+' m)',4200);first=false;return;}
-    const sn=snap(...toXY(ll));setMe(sn);
-    if(first){map.easeTo({center:ll,zoom:Math.max(map.getZoom(),16.5)});toast('Live location on, \u00b1'+acc+' m, near '+label(sn));first=false;}
-  },err=>{
-    if(err.code===3){toast('Waiting for a GPS fix\u2026');return;}    // timeout: keep watching
-    stop();toast((err.code===1?'Location permission denied':'Could not get your location')+'. Long-press the map to set where you are',4200);
-  },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
-};
+  stopGps();gpsBtn('asking');gotFix=false;firstCentre=true;touchedMap=false;
+  const follow=high=>{watchId=navigator.geolocation.watchPosition(onPos,err=>{
+      if(err.code===1){stopGps();toast('Location permission denied. Long-press the map to set where you are',4200);return;}
+      if(gotFix)return;                                                     // keep the last known spot on a brief drop
+      if(high){navigator.geolocation.clearWatch(watchId);follow(false);}    // GPS too slow: use network location
+      else{stopGps();toast('Could not get your location. Long-press the map to set where you are',4200);}
+    },{enableHighAccuracy:high,maximumAge:high?3000:60000,timeout:high?12000:30000});};
+  navigator.geolocation.getCurrentPosition(onPos,()=>{},{enableHighAccuracy:false,maximumAge:600000,timeout:4000});
+  follow(true);
+}
+function stopGps(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;gpsFix=null;gpsBtn('off');}
+$('gps').onclick=()=>{if(watchId!==null){stopGps();toast('Live location off');}else startGps();};
+['dragstart','zoomstart','rotatestart'].forEach(ev=>map.on(ev,e=>{if(e.originalEvent)touchedMap=true;}));
+try{const l=JSON.parse(localStorage.getItem(LAST_FIX));if(l&&Date.now()-l.t<12*3600e3&&inside(l.ll)){setMe(snap(...toXY(l.ll)));map.jumpTo({center:l.ll,zoom:16.5});}}catch(_){} // open where this phone last was (12 h)
+startGps();
 
 // ---------- developer option: place Point A and Point B ----------
 const fmt=p=>p?p[1].toFixed(6)+', '+p[0].toFixed(6):'not set';
