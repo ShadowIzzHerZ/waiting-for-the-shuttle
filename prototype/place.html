@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Place markers</title>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<style>
+:root{--ink:#1c1917;--ink2:#57534e;--line:#e7e2d9;--bg:#f8f6f1;--maroon:#6b1d12}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Roboto,sans-serif}
+#map{position:absolute;inset:0 0 0 0}
+#bar{position:absolute;left:12px;top:12px;right:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:12px;max-width:640px}
+#bar button{height:36px;min-width:44px;padding:0 12px;border:1px solid var(--line);border-radius:18px;background:#fff;font:inherit;cursor:pointer}
+#bar button.on{background:var(--maroon);color:#fff;border-color:var(--maroon)}
+#list{position:absolute;left:12px;bottom:12px;max-width:min(420px,calc(100% - 24px));max-height:40%;overflow:auto;padding:8px 12px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:12px;font:12px ui-monospace,Menlo,monospace}
+#list:empty{display:none}
+.mk{display:grid;place-items:center;min-width:26px;height:26px;padding:0 6px;border-radius:13px;background:var(--maroon);color:#fff;font:600 12px system-ui,sans-serif;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:grab}
+.mk.A{background:var(--ink)}.mk.n{background:#2563eb}
+#osm{position:absolute;right:8px;bottom:4px;font-size:10px;color:var(--ink2)}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="bar">
+  <b>Tap to place:</b>
+  <button data-k="A" class="on">A</button><button data-k="B">B</button><button data-k="54">54</button><button data-k="#">1, 2, 3…</button>
+  <button id="old">Old drawing</button><button id="undo">Undo</button><button id="clear">Clear</button>
+</div>
+<div id="list"></div>
+<div id="osm">&copy; OpenStreetMap contributors</div>
+<script src="vendor/maplibre-gl.js"></script>
+<script src="map/campus-osm.js"></script>
+<script src="map/drawing-img.js"></script>
+<script>
+// 2D campus map for placing markers by hand: tap to drop, drag to move. Coordinates are listed so a screenshot carries them.
+const DRAWING_CORNERS=[[75.7011554,31.2606697],[75.7117403,31.2586432],[75.7089308,31.2477729],[75.6983459,31.2497995]]; // same as app.js
+const REL=21599790,same=(a,b)=>a[0]===b[0]&&a[1]===b[1];
+const els=window.OSM.elements,rel=els.find(e=>e.type==='relation'&&e.id===REL);
+const feats=[];
+rel.members.filter(m=>m.geometry&&(m.role==='outer'||m.role==='')).forEach(m=>feats.push({type:'Feature',properties:{kind:'outline'},geometry:{type:'LineString',coordinates:m.geometry}}));
+els.forEach(e=>{if(e.type!=='way')return;const t=e.tags||{},g=e.geometry,closed=g.length>3&&same(g[0],g[g.length-1]);
+  if(t.building&&closed)feats.push({type:'Feature',properties:{kind:'building',name:t.name||t.ref||''},geometry:{type:'Polygon',coordinates:[g]}});
+  else if(t.highway)feats.push({type:'Feature',properties:{kind:/footway|path|steps|track|cycleway/.test(t.highway)?'path':'road',name:t.name||''},geometry:{type:'LineString',coordinates:g}});
+  else if((t.leisure||t.landuse)&&closed)feats.push({type:'Feature',properties:{kind:'green'},geometry:{type:'Polygon',coordinates:[g]}});});
+const kind=k=>['==',['get','kind'],k];
+const map=new maplibregl.Map({container:'map',center:[75.7045,31.2545],zoom:15.6,maxZoom:20,attributionControl:false,dragRotate:false,pitchWithRotate:false,
+  style:{version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#f3efe6'}}]}});
+map.touchZoomRotate.disableRotation();
+map.on('load',()=>{
+  map.addSource('drawing',{type:'image',url:window.DRAWING_IMG,coordinates:DRAWING_CORNERS});
+  map.addLayer({id:'drawing',type:'raster',source:'drawing',layout:{visibility:'none'},paint:{'raster-fade-duration':0}});
+  map.addSource('c',{type:'geojson',data:{type:'FeatureCollection',features:feats}});
+  map.addLayer({id:'green',type:'fill',source:'c',filter:kind('green'),paint:{'fill-color':'#cfe0c0','fill-opacity':.7}});
+  map.addLayer({id:'bld',type:'fill',source:'c',filter:kind('building'),paint:{'fill-color':'#cbc2b3','fill-opacity':.8,'fill-outline-color':'#8a7f70'}});
+  map.addLayer({id:'road',type:'line',source:'c',filter:kind('road'),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#8a7f70','line-width':['interpolate',['linear'],['zoom'],14,1.5,19,10]}});
+  map.addLayer({id:'path',type:'line',source:'c',filter:kind('path'),paint:{'line-color':'#a89e8f','line-width':1,'line-dasharray':[2,2]}});
+  map.addLayer({id:'outline',type:'line',source:'c',filter:kind('outline'),paint:{'line-color':'#6b1d12','line-width':2}});
+});
+let mode='A',n=0,oldOn=false;const marks=[];
+const $=q=>document.querySelector(q);
+document.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{mode=b.dataset.k;document.querySelectorAll('[data-k]').forEach(x=>x.classList.toggle('on',x===b));});
+function list(){$('#list').innerHTML=marks.map(m=>{const p=m.mk.getLngLat();return '<div><b>'+m.k+'</b>  '+p.lat.toFixed(6)+', '+p.lng.toFixed(6)+'</div>';}).join('');}
+map.on('click',e=>{
+  const k=mode==='#'?String(++n):mode;
+  const i=marks.findIndex(m=>m.k===k);if(i>=0){marks[i].mk.remove();marks.splice(i,1);} // A, B and 54 exist once
+  const el=document.createElement('div');el.className='mk '+(k==='A'?'A':/^\d+$/.test(k)&&k!=='54'?'n':'');el.textContent=k;
+  const mk=new maplibregl.Marker({element:el,draggable:true}).setLngLat(e.lngLat).addTo(map);mk.on('drag',list);
+  marks.push({k,mk});list();});
+$('#undo').onclick=()=>{const m=marks.pop();if(m){m.mk.remove();if(/^\d+$/.test(m.k)&&m.k!=='54')n--;list();}};
+$('#clear').onclick=()=>{marks.splice(0).forEach(m=>m.mk.remove());n=0;list();};
+$('#old').onclick=()=>{oldOn=!oldOn;$('#old').classList.toggle('on',oldOn);map.setLayoutProperty('drawing','visibility',oldOn?'visible':'none');
+  ['bld','green'].forEach(l=>map.setPaintProperty(l,'fill-opacity',oldOn?.35:l==='bld'?.8:.7));};
+</script>
+</body>
+</html>
