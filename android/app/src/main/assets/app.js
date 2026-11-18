@@ -247,7 +247,7 @@ function drawEnds(){
     if(gpsFix.heading!==null){const h=(gpsFix.heading-map.getBearing())*Math.PI/180;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(h);ctx.fillStyle='#2563eb';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(-5,-7);ctx.lineTo(5,-7);ctx.fill();ctx.restore();} // which way you are walking
     ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fillStyle='#2563eb';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
   if(me){const p=P(me.x,me.y);ctx.fillStyle='rgba(107,29,18,.18)';ctx.beginPath();ctx.arc(p.x,p.y,15,0,7);ctx.fill();
-    ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#6b1d12';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();chip('YOU ARE HERE',p.x,p.y+26,'#1c1917','#fff');}
+    ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#6b1d12';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();chip($('psel').value==='gps'?'YOU ARE HERE':'PICKUP: '+pickName,p.x,p.y+26,'#1c1917','#fff');}
 }
 let t0=performance.now(),lastEval=0;
 function frame(now){
@@ -269,6 +269,12 @@ function frame(now){
 function drawOverlay(){
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   drawEnds();
+  // each cart coming to your place: a dashed line along the road from the cart to you
+  ctx.save();ctx.setLineDash([6,5]);ctx.lineWidth=3;ctx.lineCap='round';
+  for(const c of carts){if(c.eta===null||c.dm===undefined)continue;ctx.strokeStyle=c.ok?'rgba(21,128,61,.75)':'rgba(120,113,108,.35)';ctx.beginPath();
+    for(let d=c.s,first=true;;d+=8){const e=Math.min(d,c.dm),q=posAt(c.route,e),p=P(q.x,q.y);first?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);first=false;if(e>=c.dm)break;}
+    ctx.stroke();}
+  ctx.restore();
   for(const on of [false,true])for(const c of carts)if(c.ok===on)drawCart(c);   // carts you can take are drawn on top
 }
 map.on('render',drawOverlay);
@@ -276,15 +282,19 @@ setMe(snap(...N[mainPath[mainPath.length>>1]]));
 if(!V_NODE)toast('Stop 54 is not placed on the map yet, carts run A to B',4000);
 requestAnimationFrame(frame);
 
-// ---------- input: tap = destination, long-press or right-click = you are here ----------
+// ---------- input: tap = the place you wait at (carts coming there are shown), long-press or right-click = destination ----------
+let pickName='';
+function choosePlace(sn,key){stopGps();pickName=key?END_NAME[key]:label(sn);setMe(sn);const s=$('psel');
+  if(key)s.value=key;else{const o=s.querySelector('[value=x]');o.textContent=label(sn);o.hidden=false;s.value='x';}
+  toast('Showing carts coming to '+(key?END_NAME[key]:label(sn)),1800);}
 function pick(e){const m=toXY([e.lngLat.lng,e.lngLat.lat]),sn=snap(...m),p=P(sn.x,sn.y);
   if(Math.hypot(p.x-e.point.x,p.y-e.point.y)>46){toast('Tap closer to the cart route');return null;}return sn;}
 map.on('click',e=>{
   if(devPlace){const d={A:STOPS.A,B:STOPS.B,[devPlace]:[+e.lngLat.lng.toFixed(6),+e.lngLat.lat.toFixed(6)]};
     try{localStorage.setItem('devStops',JSON.stringify(d));}catch(_){toast('Could not save the stop in this browser');return;}
     toast('Point '+devPlace+' placed, reloading',1200);devPlace=null;setTimeout(()=>location.reload(),900);return;}
-  const sn=pick(e);if(sn)setDest(sn);});
-map.on('contextmenu',e=>{const sn=pick(e);if(sn){if(watchId!==null)stopGps();setMe(sn);toast('You are near '+label(sn),1800);if(navigator.vibrate)navigator.vibrate(15);}});
+  const sn=pick(e);if(sn)choosePlace(sn);});
+map.on('contextmenu',e=>{const sn=pick(e);if(sn){setDest(sn);toast('Going to '+label(sn),1800);if(navigator.vibrate)navigator.vibrate(15);}});
 // touch long-press: browsers differ on contextmenu, so time it ourselves
 let pressT=null;
 map.on('touchstart',e=>{clearTimeout(pressT);if(e.originalEvent.touches.length!==1)return;pressT=setTimeout(()=>map.fire('contextmenu',{lngLat:e.lngLat,point:e.point}),550);});
@@ -299,6 +309,7 @@ $('d3').onclick=e=>{threeD=!threeD;e.currentTarget.textContent=threeD?'2D':'3D';
   if(ready)map.setPaintProperty('bld','fill-extrusion-height',threeD?['get','h']:0);map.easeTo({pitch:threeD?50:0,duration:500});};
 $('stops').textContent=V_NODE?END_NAME.A+' · Stop 54 · '+END_NAME.B:END_NAME.A+' · '+END_NAME.B;
 if(!V_NODE)$('dsel').options[2].remove();
+$('psel').onchange=e=>{const v=e.target.value;if(v==='gps')startGps();else if(v==='A'||v==='B')choosePlace(snap(...N[v==='A'?A_NODE:B_NODE]),v);};
 $('dsel').onchange=e=>{const k={A:A_NODE,V:V_NODE,B:B_NODE}[e.target.value];if(k)setDest(snap(...N[k]),true);else if(!e.target.value)setDest(null);};
 // live GNSS, as in lpu-wayfinder: a quick rough fix first (the phone's last known spot), then high-accuracy GPS;
 // if GPS is too slow (indoors) fall back to network location; a brief GPS drop keeps the last spot.
@@ -307,6 +318,7 @@ const LAST_FIX='cartLastFix';
 let gotFix=false,firstCentre=true,touchedMap=false,centredAt=0;
 function gpsBtn(state){const b=$('gps');b.classList.toggle('busy',state==='asking');b.classList.toggle('on',state==='on');}
 function onPos(pos){
+  if(watchId===null)return;                                                 // a late fix after you picked a place by hand
   const ll=[pos.coords.longitude,pos.coords.latitude],acc=Math.round(pos.coords.accuracy),sp=pos.coords.speed,hd=pos.coords.heading;
   gotFix=true;gpsBtn('on');
   gpsFix={ll,acc,heading:typeof hd==='number'&&!isNaN(hd)&&(sp||0)>0.6?hd:null};   // heading only while moving
@@ -318,13 +330,13 @@ function onPos(pos){
   else if(!touchedMap&&acc<=60&&Date.now()-centredAt<60000){const c=map.project(ll);if(Math.hypot(c.x-W/2,c.y-H/2)>60)map.easeTo({center:ll,duration:300});} // first minute: stay on you while GPS sharpens
 }
 function startGps(){
-  if(!navigator.geolocation){toast('GPS is not available here. Long-press the map to set where you are',4200);return;}
-  stopGps();gpsBtn('asking');gotFix=false;firstCentre=true;touchedMap=false;
+  if(!navigator.geolocation){toast('GPS is not available here. Tap the map or pick From to choose your place',4200);return;}
+  stopGps();$('psel').value='gps';gpsBtn('asking');gotFix=false;firstCentre=true;touchedMap=false;
   const follow=high=>{watchId=navigator.geolocation.watchPosition(onPos,err=>{
-      if(err.code===1){stopGps();toast('Location permission denied. Long-press the map to set where you are',4200);return;}
+      if(err.code===1){stopGps();toast('Location permission denied. Tap the map or pick From to choose your place',4200);return;}
       if(gotFix)return;                                                     // keep the last known spot on a brief drop
       if(high){navigator.geolocation.clearWatch(watchId);follow(false);}    // GPS too slow: use network location
-      else{stopGps();toast('Could not get your location. Long-press the map to set where you are',4200);}
+      else{stopGps();toast('Could not get your location. Tap the map or pick From to choose your place',4200);}
     },{enableHighAccuracy:high,maximumAge:high?3000:60000,timeout:high?12000:30000});};
   navigator.geolocation.getCurrentPosition(onPos,()=>{},{enableHighAccuracy:false,maximumAge:600000,timeout:4000});
   follow(true);

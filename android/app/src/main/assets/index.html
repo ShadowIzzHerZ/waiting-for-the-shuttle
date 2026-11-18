@@ -24,7 +24,7 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px}
 .pill i{width:6px;height:6px;border-radius:50%;background:var(--go)}
 #destrow{flex:none;display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 #destrow label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
-#dsel{flex:1;min-width:0;height:40px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:15px;font-weight:500}
+#psel,#dsel{flex:1;min-width:0;height:40px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:15px;font-weight:500}
 #mapwrap{flex:1;min-height:160px;position:relative;overflow:hidden;touch-action:none;background:#f3efe6;user-select:none;-webkit-user-select:none}
 #map,#c{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 #c{pointer-events:none}
@@ -101,8 +101,10 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px}
     <div class="ttl"><b>LPU CartNet<i></i></b><small id="stops"></small></div>
     <span class="pill"><i></i>Simulation</span>
   </header>
-  <div id="destrow"><label for="dsel">Destination</label>
-    <select id="dsel"><option value="">Tap the route on the map</option><option value="A">Main Stop</option><option value="V">Stop 54</option><option value="B">2nd Stop</option><option value="x" hidden></option></select>
+  <div id="destrow"><label for="psel">From</label>
+    <select id="psel"><option value="gps">My location</option><option value="A">Main Stop</option><option value="B">2nd Stop</option><option value="x" hidden></option></select>
+    <label for="dsel">To</label>
+    <select id="dsel"><option value="">Anywhere</option><option value="A">Main Stop</option><option value="V">Stop 54</option><option value="B">2nd Stop</option><option value="x" hidden></option></select>
   </div>
   <div id="mapwrap">
     <div id="map"></div><canvas id="c"></canvas>
