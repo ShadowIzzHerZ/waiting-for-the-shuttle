@@ -260,11 +260,16 @@ function frame(now){
     for(const d of ['A','B']){spawnT[d]-=sd;if(spawnT[d]<=0){spawn(d,0);spawnT[d]+=nextGap();}}
   }
   if(now-lastEval>200){update();lastEval=now;}
+  put('sim',paused?'Paused':mmss(simClock));
+  map.triggerRepaint();                           // carts moved: draw them with the next map frame
+}
+// the overlay is drawn in the map's own frame, so stops and carts stay pinned to the ground while you pan, zoom or tilt
+function drawOverlay(){
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   drawEnds();
   for(const on of [false,true])for(const c of carts)if(c.ok===on)drawCart(c);   // carts you can take are drawn on top
-  put('sim',paused?'Paused':mmss(simClock));
 }
+map.on('render',drawOverlay);
 setMe(snap(...N[mainPath[mainPath.length>>1]]));
 if(!V_NODE)toast('Stop 54 is not placed on the map yet, carts run A to B',4000);
 requestAnimationFrame(frame);
