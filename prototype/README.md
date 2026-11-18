@@ -10,7 +10,7 @@ The 3D map is ported from [lpu-wayfinder](https://github.com/dushyantpal38-ui/lp
 - Preset ends A (Main Gate) and B (Block 58 end). Carts leave both ends; the time between departures is drawn from our 73 stopwatch gaps.
 - 65% of carts leave full. Some empty carts pick up students on the way and turn full (a ring flashes when that happens).
 - About 30% of carts take a different path. Carts follow the traced campus roads only and curve round corners.
-- Your position (GPS button, or long-press the map) and a destination (tap a road). Empty carts that will pass you and go on to your destination are bright and show a countdown; full carts and carts going the other way or on another path are dimmed.
+- Your position: the location button turns on live GNSS tracking (it follows you, blue dot with accuracy ring, until tapped again), or long-press the map and a destination (tap a road). Empty carts that will pass you and go on to your destination are bright and show a countdown; full carts and carts going the other way or on another path are dimmed.
 - A "next empty cart" countdown, the ride time to your destination, and the stretch of road it will drive, drawn as a dotted blue line.
 - Drag to pan, pinch to zoom, two-finger twist to rotate, two-finger drag to tilt (desktop: right-drag). "Fit map" to see the whole campus again. 2D/3D button flattens or raises the buildings. Speed button: 12x, 36x or 1x real time. Pause button.
 
@@ -28,6 +28,8 @@ On a phone over USB debugging: `adb reverse tcp:8000 tcp:8000`, then open `http:
 The APK is debug-signed: fine for sideloading, not for the Play Store.
 
 ## Stops and the map data
+Developer option: tap the logo, then Place Point A or Place Point B and tap the map. The spot is saved in that browser or phone (it overrides `STOPS`) and the app reloads. The panel shows the coordinates; Reset goes back to the defaults.
+
 Stops are `STOPS` in `app.js` as `[longitude, latitude]`; each snaps to the nearest cart road. A and B are approximate, and stop 54 is not placed yet (`V:null`, carts then run A to B directly). Set 54 to its real spot to make it a via stop.
 
 Carts use OpenStreetMap roads of the types in `CART_ROADS`; dead ends are dropped. To refresh the map data: `python3 tools/osm_snapshot.py` (writes `map/campus-osm.js`).

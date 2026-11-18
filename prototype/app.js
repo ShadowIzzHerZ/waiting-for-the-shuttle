@@ -8,7 +8,10 @@ const SPEED_KMH=[10,15];                       // cart speed range in km/h (each
 const P_FULL=0.65,P_PICKUP=0.30,P_DETOUR=0.30; // carts leaving full / filling on the way / taking another path
 const CORNER=6;                                // corner rounding radius in metres
 // Stops [lng, lat]. shortcut: A and B are the old approximate GPS anchors and 54 is not placed yet; replace with measured spots.
-const STOPS={A:[75.7059,31.2512],B:[75.7016,31.2584],V:null};
+const DEF_STOPS={A:[75.7059,31.2512],B:[75.7016,31.2584],V:null};
+// Developer option (tap the logo): stops placed on the map are kept in this browser and override the defaults.
+let STOPS=DEF_STOPS,DEV_STOPS=false;
+try{const d=JSON.parse(localStorage.getItem('devStops'));if(d&&(d.A||d.B)){STOPS={...DEF_STOPS,...d};DEV_STOPS=true;}}catch(_){}
 const END_NAME={A:'Main Gate',B:'Block 58'};
 const CART_ROADS={residential:1,service:1,unclassified:1,tertiary:1,tertiary_link:1,living_street:1,pedestrian:1}; // OSM roads carts may use
 const KX=111320*Math.cos(31.25*Math.PI/180),KY=110574;
@@ -73,7 +76,9 @@ function dijkstra(s,wf,stop){ // wf(edgeKey) = weight multiplier; binary heap
 function path(s,t,wf){const {P}=dijkstra(s,wf,t);const r=[t];while(r[0]!==s){if(P[r[0]]===undefined)return null;r.unshift(P[r[0]]);}return r;}
 const via=(a,b,wf)=>V_NODE?path(a,V_NODE,wf).concat(path(V_NODE,b,wf).slice(1)):path(a,b,wf);
 const mainPath=via(A_NODE,B_NODE);
-if(!mainPath)throw new Error('No road joins stop A to stop B');
+if(!mainPath){
+  if(DEV_STOPS){try{localStorage.removeItem('devStops')}catch(_){}alert('No cart road joins the placed Point A and Point B. Going back to the default stops.');location.reload();}
+  throw new Error('No road joins stop A to stop B');}
 const mainKeys=new Set(mainPath.slice(1).map((k,i)=>ekey(mainPath[i],k)));
 
 // ---------- routes with rounded corners ----------
@@ -132,7 +137,7 @@ function routeDist(r,sn,s0){
 
 // ---------- state ----------
 const $=id=>document.getElementById(id);
-let me=null,dest=null,paused=false,spi=0,best=null,simClock=0,toastT=null,rideFor=null,threeD=true;
+let me=null,gpsFix=null,watchId=null,devPlace=null,dest=null,paused=false,spi=0,best=null,simClock=0,toastT=null,rideFor=null,threeD=true;
 function toast(msg,ms){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),ms||2600);}
 const put=(id,s)=>{const el=$(id);if(el.textContent!==s)el.textContent=s;};
 const cid=c=>String(c.id).padStart(2,'0');
@@ -233,6 +238,9 @@ function drawEnds(){
     ctx.fillStyle=light?'#1c1917':'#fff';ctx.font='600 '+(l.length>1?10:12)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(l,p.x,p.y+.5);
     chip(END_NAME[l]||'Stop 54 (via)',p.x,p.y-26,bg,light?'#1c1917':'#fff',light?'#b9aea0':null);});
   if(dest){const p=P(dest.x,dest.y);ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#6b1d12';ctx.lineWidth=3;ctx.stroke();}
+  if(gpsFix){const p=map.project(gpsFix.ll),e=map.project([gpsFix.ll[0]+gpsFix.acc/KX,gpsFix.ll[1]]),r=Math.max(8,Math.hypot(e.x-p.x,e.y-p.y));
+    ctx.fillStyle='rgba(37,99,235,.15)';ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fillStyle='#2563eb';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
   if(me){const p=P(me.x,me.y);ctx.fillStyle='rgba(107,29,18,.18)';ctx.beginPath();ctx.arc(p.x,p.y,15,0,7);ctx.fill();
     ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#6b1d12';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();chip('YOU ARE HERE',p.x,p.y+26,'#1c1917','#fff');}
 }
@@ -261,8 +269,12 @@ requestAnimationFrame(frame);
 // ---------- input: tap = destination, long-press or right-click = you are here ----------
 function pick(e){const m=toXY([e.lngLat.lng,e.lngLat.lat]),sn=snap(...m),p=P(sn.x,sn.y);
   if(Math.hypot(p.x-e.point.x,p.y-e.point.y)>46){toast('Tap closer to the cart route');return null;}return sn;}
-map.on('click',e=>{const sn=pick(e);if(sn)setDest(sn);});
-map.on('contextmenu',e=>{const sn=pick(e);if(sn){setMe(sn);toast('You are near '+label(sn),1800);if(navigator.vibrate)navigator.vibrate(15);}});
+map.on('click',e=>{
+  if(devPlace){const d={A:STOPS.A,B:STOPS.B,[devPlace]:[+e.lngLat.lng.toFixed(6),+e.lngLat.lat.toFixed(6)]};
+    try{localStorage.setItem('devStops',JSON.stringify(d));}catch(_){toast('Could not save the stop in this browser');return;}
+    toast('Point '+devPlace+' placed, reloading',1200);devPlace=null;setTimeout(()=>location.reload(),900);return;}
+  const sn=pick(e);if(sn)setDest(sn);});
+map.on('contextmenu',e=>{const sn=pick(e);if(sn){if(watchId!==null)$('gps').click();setMe(sn);toast('You are near '+label(sn),1800);if(navigator.vibrate)navigator.vibrate(15);}});
 // touch long-press: browsers differ on contextmenu, so time it ourselves
 let pressT=null;
 map.on('touchstart',e=>{clearTimeout(pressT);if(e.originalEvent.touches.length!==1)return;pressT=setTimeout(()=>map.fire('contextmenu',{lngLat:e.lngLat,point:e.point}),550);});
@@ -278,15 +290,29 @@ $('d3').onclick=e=>{threeD=!threeD;e.currentTarget.textContent=threeD?'2D':'3D';
 $('stops').textContent=V_NODE?'Stop A · Stop 54 · Stop B':END_NAME.A+' · '+END_NAME.B;
 if(!V_NODE)$('dsel').options[2].remove();
 $('dsel').onchange=e=>{const k={A:A_NODE,V:V_NODE,B:B_NODE}[e.target.value];if(k)setDest(snap(...N[k]),true);else if(!e.target.value)setDest(null);};
+// live GNSS: keeps following you until you tap the button again (or long-press to place yourself)
 $('gps').onclick=()=>{
-  const btn=$('gps'),fail=m=>{btn.classList.remove('busy');toast(m+'. Long-press the map to set where you are',4200);};
-  if(!navigator.geolocation){fail('GPS is not available here');return;}
-  btn.classList.add('busy');
-  navigator.geolocation.getCurrentPosition(pos=>{
-    const ll=[pos.coords.longitude,pos.coords.latitude];
-    if(!inside(ll)){fail('You seem to be outside the campus');return;}
-    btn.classList.remove('busy');
-    const sn=snap(...toXY(ll));setMe(sn);map.easeTo({center:ll,zoom:Math.max(map.getZoom(),16.5)});
-    toast((sn.d>60?'Placed on the nearest cart road, near ':'You are near ')+label(sn));
-  },()=>fail('Could not get your location'),{enableHighAccuracy:true,timeout:10000});
+  const btn=$('gps'),stop=()=>{if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;gpsFix=null;btn.classList.remove('busy','on');};
+  if(watchId!==null){stop();toast('Live location off');return;}
+  if(!navigator.geolocation){toast('GPS is not available here. Long-press the map to set where you are',4200);return;}
+  btn.classList.add('busy');let first=true;
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    const ll=[pos.coords.longitude,pos.coords.latitude],acc=Math.round(pos.coords.accuracy);
+    btn.classList.remove('busy');btn.classList.add('on');gpsFix={ll,acc};
+    if(!inside(ll)){if(first)toast('You seem to be outside the campus (\u00b1'+acc+' m)',4200);first=false;return;}
+    const sn=snap(...toXY(ll));setMe(sn);
+    if(first){map.easeTo({center:ll,zoom:Math.max(map.getZoom(),16.5)});toast('Live location on, \u00b1'+acc+' m, near '+label(sn));first=false;}
+  },err=>{
+    if(err.code===3){toast('Waiting for a GPS fix\u2026');return;}    // timeout: keep watching
+    stop();toast((err.code===1?'Location permission denied':'Could not get your location')+'. Long-press the map to set where you are',4200);
+  },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
 };
+
+// ---------- developer option: place Point A and Point B ----------
+const fmt=p=>p?p[1].toFixed(6)+', '+p[0].toFixed(6):'not set';
+function devShow(){$('devc').textContent='A '+fmt(STOPS.A)+'  \u00b7  B '+fmt(STOPS.B)+(DEV_STOPS?'  (placed)':'  (default)');
+  $('devA').classList.toggle('on',devPlace==='A');$('devB').classList.toggle('on',devPlace==='B');}
+$('logo').onclick=()=>{$('dev').hidden=!$('dev').hidden;devPlace=null;devShow();};
+['A','B'].forEach(k=>$('dev'+k).onclick=()=>{devPlace=devPlace===k?null:k;devShow();if(devPlace)toast('Tap the map where Point '+k+' should be',3000);});
+$('devR').onclick=()=>{try{localStorage.removeItem('devStops')}catch(_){}location.reload();};
+$('devX').onclick=()=>{$('dev').hidden=true;devPlace=null;};
