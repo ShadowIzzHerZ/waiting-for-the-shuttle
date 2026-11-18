@@ -24,6 +24,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1
 <div id="bar">
   <b>Tap to place:</b>
   <button data-k="A" class="on">A</button><button data-k="B">B</button><button data-k="54">54</button><button data-k="#">1, 2, 3…</button>
+  <button id="rl" aria-label="Rotate left">&#8634; Left</button><button id="rr" aria-label="Rotate right">Right &#8635;</button><button id="north">N <span id="brg">0&deg;</span></button>
   <button id="old">Old drawing</button><button id="undo">Undo</button><button id="clear">Clear</button>
 </div>
 <div id="list"></div>
@@ -43,9 +44,8 @@ els.forEach(e=>{if(e.type!=='way')return;const t=e.tags||{},g=e.geometry,closed=
   else if(t.highway)feats.push({type:'Feature',properties:{kind:/footway|path|steps|track|cycleway/.test(t.highway)?'path':'road',name:t.name||''},geometry:{type:'LineString',coordinates:g}});
   else if((t.leisure||t.landuse)&&closed)feats.push({type:'Feature',properties:{kind:'green'},geometry:{type:'Polygon',coordinates:[g]}});});
 const kind=k=>['==',['get','kind'],k];
-const map=new maplibregl.Map({container:'map',center:[75.7045,31.2545],zoom:15.6,maxZoom:20,attributionControl:false,dragRotate:false,pitchWithRotate:false,
+const map=new maplibregl.Map({container:'map',center:[75.7045,31.2545],zoom:15.6,maxZoom:20,maxPitch:0,attributionControl:false,bearingSnap:0,pitchWithRotate:false,
   style:{version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#f3efe6'}}]}});
-map.touchZoomRotate.disableRotation();
 map.on('load',()=>{
   map.addSource('drawing',{type:'image',url:window.DRAWING_IMG,coordinates:DRAWING_CORNERS});
   map.addLayer({id:'drawing',type:'raster',source:'drawing',layout:{visibility:'none'},paint:{'raster-fade-duration':0}});
@@ -66,6 +66,11 @@ map.on('click',e=>{
   const el=document.createElement('div');el.className='mk '+(k==='A'?'A':/^\d+$/.test(k)&&k!=='54'?'n':'');el.textContent=k;
   const mk=new maplibregl.Marker({element:el,draggable:true}).setLngLat(e.lngLat).addTo(map);mk.on('drag',list);
   marks.push({k,mk});list();});
+// rotate: buttons turn 15 degrees, N faces north again; right-drag or two-finger twist also rotate
+$('#rl').onclick=()=>map.easeTo({bearing:map.getBearing()-15,duration:250});
+$('#rr').onclick=()=>map.easeTo({bearing:map.getBearing()+15,duration:250});
+$('#north').onclick=()=>map.easeTo({bearing:0,duration:300});
+map.on('rotate',()=>{$('#brg').textContent=Math.round((map.getBearing()+360)%360)+'\u00b0';});
 $('#undo').onclick=()=>{const m=marks.pop();if(m){m.mk.remove();if(/^\d+$/.test(m.k)&&m.k!=='54')n--;list();}};
 $('#clear').onclick=()=>{marks.splice(0).forEach(m=>m.mk.remove());n=0;list();};
 $('#old').onclick=()=>{oldOn=!oldOn;$('#old').classList.toggle('on',oldOn);map.setLayoutProperty('drawing','visibility',oldOn?'visible':'none');
