@@ -48,7 +48,11 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px}
 #toast{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 24px);background:rgba(28,25,23,.82);color:#fff;font-size:13px;padding:8px 16px;border-radius:16px;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.on{opacity:1}
 #sheet{flex:none;position:relative;margin-top:-16px;padding:14px 16px calc(12px + env(safe-area-inset-bottom));background:var(--surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column}
-#sheet:before{content:"";position:absolute;left:50%;top:8px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:var(--line)}
+#grab{position:absolute;left:50%;top:0;width:88px;height:28px;margin-left:-44px;padding:0;border:0;background:none;touch-action:none}
+#grab:before{content:"";position:absolute;left:24px;top:8px;width:40px;height:4px;border-radius:2px;background:var(--ink3)}
+#sheet #trip,#sheet #foot{display:none}
+#sheet.min .hd,#sheet.min #list,#sheet.min #ns,#sheet.min #rd{display:none}
+#sheet.min{padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 #next{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:8px}
 #chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;background:var(--gobg);color:var(--go);font-size:13px;font-weight:500}
 #chip:before{content:"";width:5px;height:5px;border-radius:50%;background:var(--go)}
@@ -115,6 +119,7 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px}
     <div id="toast" role="status"></div>
   </div>
   <div id="sheet">
+    <button id="grab" aria-label="Show less" aria-expanded="true"></button>
     <div id="next" class="none">
       <div><div><span id="chip"></span><span id="via"></span></div><div class="big"><span id="cd">--:--</span><small>min wait</small></div><div id="ns"></div></div>
       <div class="r"><div class="lbl">Ride time</div><div id="rt">--:--</div><div id="rd"></div></div>

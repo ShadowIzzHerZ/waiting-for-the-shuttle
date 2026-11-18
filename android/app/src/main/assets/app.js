@@ -343,3 +343,10 @@ $('logo').onclick=()=>{$('dev').hidden=!$('dev').hidden;devPlace=null;devShow();
 ['A','B'].forEach(k=>$('dev'+k).onclick=()=>{devPlace=devPlace===k?null:k;devShow();if(devPlace)toast('Tap the map where Point '+k+' should be',3000);});
 $('devR').onclick=()=>{try{localStorage.removeItem('devStops')}catch(_){}location.reload();};
 $('devX').onclick=()=>{$('dev').hidden=true;devPlace=null;};
+
+// ---------- bottom sheet: drag the handle down (or tap it) to show only the countdown, up to show it all ----------
+{const sh=$('sheet'),g=$('grab');let y0=null;
+ const setMin=on=>{sh.classList.toggle('min',on);g.setAttribute('aria-expanded',String(!on));g.setAttribute('aria-label',on?'Show more':'Show less');};
+ g.onclick=()=>{if(y0===null)setMin(!sh.classList.contains('min'));};
+ sh.addEventListener('pointerdown',e=>{if(e.target===g||e.target.closest('#next')){y0=e.clientY;}});
+ addEventListener('pointerup',e=>{if(y0===null)return;const dy=e.clientY-y0;if(dy>30)setMin(true);else if(dy<-30)setMin(false);else if(e.target===g)setMin(!sh.classList.contains('min'));setTimeout(()=>{y0=null},0);});}
