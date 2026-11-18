@@ -8,11 +8,11 @@ const SPEED_KMH=[10,15];                       // cart speed range in km/h (each
 const P_FULL=0.65,P_PICKUP=0.30,P_DETOUR=0.30; // carts leaving full / filling on the way / taking another path
 const CORNER=6;                                // corner rounding radius in metres
 // Stops [lng, lat]. shortcut: A and B are the old approximate GPS anchors and 54 is not placed yet; replace with measured spots.
-const DEF_STOPS={A:[75.7059,31.2512],B:[75.7016,31.2584],V:null};
+const DEF_STOPS=window.CART_ROUTE?{A:CART_ROUTE.A,B:CART_ROUTE.B,V:null}:{A:[75.7059,31.2512],B:[75.7016,31.2584],V:null}; // the team's drawn route (map/cart-route.js) sets A and B
 // Developer option (tap the logo): stops placed on the map are kept in this browser and override the defaults.
 let STOPS=DEF_STOPS,DEV_STOPS=false;
 try{const d=JSON.parse(localStorage.getItem('devStops'));if(d&&(d.A||d.B)){STOPS={...DEF_STOPS,...d};DEV_STOPS=true;}}catch(_){}
-const END_NAME={A:'Main Gate',B:'Block 58'};
+const END_NAME=window.CART_ROUTE?{A:'Stop A',B:'Stop B'}:{A:'Main Gate',B:'Block 58'};
 const CART_ROADS={residential:1,service:1,unclassified:1,tertiary:1,tertiary_link:1,living_street:1,pedestrian:1}; // OSM roads carts may use
 const KX=111320*Math.cos(31.25*Math.PI/180),KY=110574;
 const toXY=p=>[p[0]*KX,p[1]*KY],toLL=(x,y)=>[x/KX,y/KY];
@@ -45,10 +45,12 @@ els.forEach(e=>{if(e.type!=='way')return;const t=e.tags||{},g=e.geometry,closed=
     if(t.name||t.ref)PLACES.push([...toXY(c),t.ref&&/^\d/.test(t.ref)?'Block '+t.ref:t.name||t.ref]);}
   else if(t.highway){let run=[];const flush=()=>{if(run.length>1)feats.push({type:'Feature',properties:{kind:/footway|path|steps|track|cycleway/.test(t.highway)?'path':'road'},geometry:{type:'LineString',coordinates:run}});run=[];};
     g.forEach(p=>inside(p)?run.push(p):flush());flush();
-    if(CART_ROADS[t.highway])for(let i=1;i<g.length;i++)if(inside(g[i-1])&&inside(g[i])){N[nk(g[i-1])]=toXY(g[i-1]);N[nk(g[i])]=toXY(g[i]);E0.push([nk(g[i-1]),nk(g[i])]);}
+    if(!window.CART_ROUTE&&CART_ROADS[t.highway])for(let i=1;i<g.length;i++)if(inside(g[i-1])&&inside(g[i])){N[nk(g[i-1])]=toXY(g[i-1]);N[nk(g[i])]=toXY(g[i]);E0.push([nk(g[i-1]),nk(g[i])]);}
     if(t.name)PLACES.push([...toXY(g[g.length>>1]),t.name]);}
   else if((t.leisure||t.landuse)&&closed&&inside(mid(g)))feats.push({type:'Feature',properties:{kind:'green'},geometry:{type:'Polygon',coordinates:[g]}});});
 const CAMPUS={type:'FeatureCollection',features:feats};
+// carts use only the roads the team drew (map/cart-route.js); lines join where they share a point
+if(window.CART_ROUTE)Object.values(CART_ROUTE.lines).forEach(g=>{for(let i=1;i<g.length;i++){N[nk(g[i-1])]=toXY(g[i-1]);N[nk(g[i])]=toXY(g[i]);E0.push([nk(g[i-1]),nk(g[i])]);}});
 // The old isometric drawing, placed on the real map. Corners [lng,lat] (top-left, top-right, bottom-right, bottom-left) come from fitting
 // the drawing's road network (map/net.json) to the OSM roads as a 30 degree isometric view plus a similarity (median error about 15 m).
 // shortcut: the drawing is not to scale, so roads can be 20-40 m off in places; a per-area warp would be needed to match everywhere.

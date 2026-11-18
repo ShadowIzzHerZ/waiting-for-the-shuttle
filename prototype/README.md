@@ -21,13 +21,15 @@ On a phone over USB debugging: `adb reverse tcp:8000 tcp:8000`, then open `http:
 
 ## Android app
 `../android` is a WebView wrapper around the same files.
-1. Copy `index.html`, `app.js`, `map/campus-osm.js`, `map/drawing-img.js` and `vendor/` into `../android/app/src/main/assets/` (same folder layout)
+1. Copy `index.html`, `app.js`, `map/campus-osm.js`, `map/drawing-img.js`, `map/cart-route.js` and `vendor/` into `../android/app/src/main/assets/` (same folder layout)
 2. In `../android`: `gradle assembleDebug`
 3. `adb install -r app/build/outputs/apk/debug/app-debug.apk`
 
 The APK is debug-signed: fine for sideloading, not for the Play Store.
 
 ## Stops and the map data
+Cart route: `map/cart-route.js` holds the roads the team drew on `place.html`, snapped to OpenStreetMap roads, with stop A and stop B. Carts use only these roads. Without that file the app falls back to all OSM roads of the types in `CART_ROADS`.
+
 Developer option: tap the logo, then Place Point A or Place Point B and tap the map. The spot is saved in that browser or phone (it overrides `STOPS`) and the app reloads. The panel shows the coordinates; Reset goes back to the defaults.
 
 Stops are `STOPS` in `app.js` as `[longitude, latitude]`; each snaps to the nearest cart road. A and B are approximate, and stop 54 is not placed yet (`V:null`, carts then run A to B directly). Set 54 to its real spot to make it a via stop.
