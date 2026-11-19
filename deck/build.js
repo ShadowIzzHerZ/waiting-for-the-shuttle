@@ -151,7 +151,7 @@ async function icon(Comp, color) {
     { name: "Wait for cart", labels: ["Ride 1", "Ride 2", "Ride 3", "Ride 4", "Ride 5"], values: [secs(4, 47), secs(9, 50), secs(5, 56), secs(6, 34), secs(4, 59)] },
     { name: "Time in cart", labels: ["Ride 1", "Ride 2", "Ride 3", "Ride 4", "Ride 5"], values: [secs(7, 39), secs(6, 44), secs(6, 1), secs(6, 55), secs(5, 12)] },
   ], Object.assign({
-    x: 0.6, y: 1.5, w: 8.2, h: 5.2, barDir: "col", barGapWidthPct: 60,
+    x: 0.6, y: 1.5, w: 5.9, h: 5.2, barDir: "col", barGapWidthPct: 60,
     chartColors: [HEX.accent1, HEX.accent2],
     showValue: true, dataLabelPosition: "outEnd", dataLabelFormatCode: "m:ss", dataLabelFontSize: 11, dataLabelColor: HEX.dk1,
     valAxisLabelFormatCode: "m:ss", valAxisLabelFontSize: 11, valAxisLabelColor: HEX.accent5, valAxisMinVal: 0,
@@ -160,6 +160,7 @@ async function icon(Comp, color) {
     showLegend: true, legendPos: "t", legendFontSize: 12, legendColor: HEX.dk1,
     showTitle: false, objectName: "Ride timings chart", altText: "Wait vs time in cart for 5 rides",
   }, chartText));
+  phone(s, "2-destination", 6.75, 1.6, 4.9, "the app shows the wait and the ride time for your stop");
   card(s, 9.2, 1.6, 3.5, 2.3, C.background2, "Median wait");
   txt(s, "5:56", { x: 9.55, y: 1.8, w: 3, h: 1.0, fontFace: THEME.headFontFace, fontSize: 54, bold: true, color: C.accent3 });
   txt(s, "median wait, 5 rides with full timings", { x: 9.55, y: 2.9, w: 3, h: 0.8, fontSize: 16 });
@@ -176,7 +177,7 @@ async function icon(Comp, color) {
     { name: "Typical wait", labels: stopLabels, values: [secs(1, 5), secs(1, 3), secs(3, 36), secs(2, 0), secs(1, 21), secs(2, 20)] },
     { name: "Longest gap between carts", labels: stopLabels, values: [secs(2, 14), secs(4, 15), secs(10, 49), secs(5, 8), secs(3, 57), secs(7, 41)] },
   ], Object.assign({
-    x: 0.6, y: 1.5, w: 8.6, h: 4.9, barDir: "bar", barGapWidthPct: 50,
+    x: 0.6, y: 1.5, w: 6.3, h: 4.9, barDir: "bar", barGapWidthPct: 50,
     chartColors: [HEX.accent2, HEX.accent1],
     showValue: true, dataLabelPosition: "outEnd", dataLabelFormatCode: "m:ss", dataLabelFontSize: 11, dataLabelColor: HEX.dk1,
     valAxisLabelFormatCode: "m:ss", valAxisLabelFontSize: 11, valAxisLabelColor: HEX.accent5, valAxisMinVal: 0,
@@ -185,6 +186,7 @@ async function icon(Comp, color) {
     showLegend: true, legendPos: "t", legendFontSize: 12, legendColor: HEX.dk1,
     objectName: "Stop gaps chart", altText: "Typical wait and longest gap at three stops",
   }, chartText));
+  phone(s, "1-waiting", 7.1, 1.6, 4.8, "two carts coming to the same stop at different times");
   card(s, 9.6, 1.6, 3.1, 2.25, C.background2, "Longest gap callout");
   txt(s, "10:49", { x: 9.9, y: 1.75, w: 2.6, h: 0.9, fontFace: THEME.headFontFace, fontSize: 44, bold: true, color: C.accent3 });
   txt(s, "longest gap between carts, Education Park", { x: 9.9, y: 2.7, w: 2.6, h: 0.9, fontSize: 15 });
