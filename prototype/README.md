@@ -12,6 +12,7 @@ The 3D map is ported from [lpu-wayfinder](https://github.com/dushyantpal38-ui/lp
 - Paths: a full cart always takes the fastest way. An empty cart takes the fastest way, or with a 45% chance (`P_OTHER` in `app.js`) one of the other ways through the roads the team marked, so every marked road gets used. Carts follow the marked roads only and curve round corners.
 - Your position: live GNSS starts when the app opens (same approach as lpu-wayfinder: a quick rough fix first, then high-accuracy GPS, falling back to network location indoors, keeping the last spot on a brief drop, and opening at the last spot this phone was on campus). Blue dot with accuracy ring and, while walking, an arrow for your heading. The location button turns it off and on. Long-press the map to place yourself by hand and a destination (tap a road). Empty carts that will pass you and go on to your destination are bright and show a countdown; full carts and carts going the other way or on another path are dimmed.
 - A "next empty cart" countdown, the ride time to your destination, and the stretch of road it will drive, drawn as a dotted blue line.
+- Block numbers on the buildings (names too when zoomed in), from lpu-wayfinder.
 - Drag to pan, pinch to zoom, two-finger twist to rotate, two-finger drag to tilt (desktop: right-drag). "Fit map" to see the whole campus again. 2D/3D button flattens or raises the buildings. Zoom button: 1x shows the whole route; each tap zooms in a step (2x, 4x, 8x) on you, then back to 1x. The label shows the current zoom. Getting on: when the empty cart you wait for reaches you, you board it; the map follows the cart (drag to look around, the location button to follow again) and the sheet counts down to your destination or the end stop. Pause button.
 
 ## Run it
@@ -21,7 +22,7 @@ On a phone over USB debugging: `adb reverse tcp:8000 tcp:8000`, then open `http:
 
 ## Android app
 `../android` is a WebView wrapper around the same files.
-1. Copy `index.html`, `app.js`, `map/campus-osm.js`, `map/cart-route.js` and `vendor/` into `../android/app/src/main/assets/` (same folder layout)
+1. Copy `index.html`, `app.js`, `map/campus-osm.js`, `map/cart-route.js`, `map/blocks.js` and `vendor/` into `../android/app/src/main/assets/` (same folder layout)
 2. In `../android`: `gradle assembleDebug`
 3. `adb install -r app/build/outputs/apk/debug/app-debug.apk`
 
@@ -53,5 +54,6 @@ Carts use OpenStreetMap roads of the types in `CART_ROADS`; dead ends are droppe
 
 ## Credit
 3D campus map: ported from [lpu-wayfinder](https://github.com/dushyantpal38-ui/lpu-wayfinder) by Dushyant Pal, with permission.
+Block numbers and names (`map/blocks.js`): placed by Dushyant Pal for lpu-wayfinder, copied from its database with permission.
 Map data: © OpenStreetMap contributors, ODbL. Map library: MapLibre GL JS 4.7.1, BSD-3-Clause.
 Campus map: "LPU isometric map design" by Takur Akhil Teja Talla, https://www.behance.net/gallery/105159145/LPU-isometric-map-design (all rights reserved by the designer; used here for a student project).

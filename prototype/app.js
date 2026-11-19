@@ -49,6 +49,7 @@ els.forEach(e=>{if(e.type!=='way')return;const t=e.tags||{},g=e.geometry,closed=
     if(t.name)PLACES.push([...toXY(g[g.length>>1]),t.name]);}
   else if((t.leisure||t.landuse)&&closed&&inside(mid(g)))feats.push({type:'Feature',properties:{kind:'green'},geometry:{type:'Polygon',coordinates:[g]}});});
 const CAMPUS={type:'FeatureCollection',features:feats};
+(window.BLOCKS||[]).forEach(([no,name,lng,lat])=>PLACES.push([...toXY([lng,lat]),/^\d/.test(no)?'Block '+no:name]));
 // carts use only the roads the team drew (map/cart-route.js); lines join where they share a point
 if(window.CART_ROUTE)Object.values(CART_ROUTE.lines).forEach(g=>{for(let i=1;i<g.length;i++){N[nk(g[i-1])]=toXY(g[i-1]);N[nk(g[i])]=toXY(g[i]);E0.push([nk(g[i-1]),nk(g[i])]);}});
 
@@ -298,9 +299,20 @@ function frame(now){
   map.triggerRepaint();                           // carts moved: draw them with the next map frame
 }
 // the overlay is drawn in the map's own frame, so stops and carts stay pinned to the ground while you pan, zoom or tilt
+// block numbers (and names when zoomed in), skipping any that would overlap one already drawn
+function drawBlocks(){
+  const z=map.getZoom();if(z<15.3||!window.BLOCKS)return;const named=z>=17.3,taken=[];
+  ctx.font='600 11px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const [no,name,lng,lat] of BLOCKS){const p=map.project([lng,lat]);if(!onScreen(p))continue;
+    let t=/^\d/.test(no)?(named?no+' '+name:no):name;if(ctx.measureText(t).width>140){while(ctx.measureText(t+'…').width>140)t=t.slice(0,-1);t=t.trimEnd()+'…';}   // long names end in …
+    const w=ctx.measureText(t).width+10,h=18,x=p.x-w/2,y=p.y-h/2;
+    if(taken.some(r=>x<r[0]+r[2]+2&&x+w+2>r[0]&&y<r[1]+r[3]+2&&y+h+2>r[1]))continue;taken.push([x,y,w,h]);
+    rr(x,y,w,h,9);ctx.fillStyle='rgba(255,255,255,.92)';ctx.fill();ctx.strokeStyle='#78716c';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#44403c';ctx.fillText(t,p.x,p.y+.5);}
+}
 function drawOverlay(){
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-  drawEnds();
+  drawBlocks();drawEnds();
   for(const on of [false,true])for(const c of carts)if(c.ok===on)drawCart(c);   // carts you can take are drawn on top
 }
 map.on('render',drawOverlay);

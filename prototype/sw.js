@@ -1,4 +1,4 @@
-const C="carts-v16",F=["./","index.html","app.js","map/campus-osm.js","map/cart-route.js","vendor/maplibre-gl.js","vendor/maplibre-gl.css","manifest.webmanifest","icon-192.png","icon-512.png"];
+const C="carts-v17",F=["./","index.html","app.js","map/campus-osm.js","map/cart-route.js","map/blocks.js","vendor/maplibre-gl.js","vendor/maplibre-gl.css","manifest.webmanifest","icon-192.png","icon-512.png"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(C).then(c=>c.addAll(F)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));
 // network first so a new drawing or app version shows at once; the cache is the offline copy
