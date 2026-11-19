@@ -249,6 +249,7 @@ map.on('load',()=>{
   const fitZ=map.cameraForBounds(BOUNDS,{padding:20});if(fitZ&&fitZ.zoom)map.setMinZoom(fitZ.zoom-0.5);
   map.addLayer({id:'draft',type:'line',source:'draft',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#dc2626','line-width':5,'line-opacity':.85}});   // a road being added in the developer panel
   ready=true;rideFor=undefined;update();
+  if(!touchedMap&&!riding)map.fitBounds(BOUNDS,{padding:{top:40,bottom:40+$('sheet').offsetHeight,left:20,right:60},duration:0});   // open with the route clear of the sheet
 });
 map.on('error',e=>console.warn(e&&e.error));
 function setRide(c){ // the stretch your cart will drive, from you to your destination
@@ -263,7 +264,7 @@ const P=(x,y)=>map.project(toLL(x,y));
 // ---------- drawing the overlay: stops, you, carts ----------
 function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function chip(t,x,y,bg,fg,ln){
-  ctx.font='600 11px system-ui,sans-serif';const w=ctx.measureText(t).width+14;x=Math.max(w/2+4,Math.min(W-w/2-(y<370?72:4),x));y=Math.max(14,Math.min(H-34,y));   // keep clear of the buttons on the right   // H-34: the bottom sheet overlaps the map's last 16 px
+  ctx.font='600 11px system-ui,sans-serif';const w=ctx.measureText(t).width+14;x=Math.max(w/2+4,Math.min(W-w/2-(y<370?72:4),x));y=Math.max(14,Math.min(H-sheetCover-18,y));   // keep clear of the buttons on the right   // H-34: the bottom sheet overlaps the map's last 16 px
   rr(x-w/2,y-10,w,20,4);ctx.fillStyle=bg;ctx.fill();if(ln){ctx.strokeStyle=ln;ctx.lineWidth=1;ctx.stroke();}
   ctx.fillStyle=fg;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y+.5);}
 const onScreen=p=>p.x>-40&&p.y>-40&&p.x<W+40&&p.y<H+40;
@@ -290,7 +291,7 @@ function drawEnds(){
     if(gpsFix.heading!==null){const h=(gpsFix.heading-map.getBearing())*Math.PI/180;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(h);ctx.fillStyle='#2563eb';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(-5,-7);ctx.lineTo(5,-7);ctx.fill();ctx.restore();} // which way you are walking
     ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fillStyle='#2563eb';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
   if(me&&!riding){const p=P(me.x,me.y);ctx.fillStyle='rgba(107,29,18,.18)';ctx.beginPath();ctx.arc(p.x,p.y,15,0,7);ctx.fill();
-    ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#6b1d12';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();chip($('psel').value==='gps'?'YOU ARE HERE':'PICKUP: '+pickName,p.x,p.y+26>H-34?p.y-26:p.y+26,'#1c1917','#fff');}
+    ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fillStyle='#6b1d12';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();chip($('psel').value==='gps'?'YOU ARE HERE':'PICKUP: '+pickName,p.x,p.y+26>H-sheetCover-18?p.y-26:p.y+26,'#1c1917','#fff');}
 }
 let t0=performance.now(),lastEval=0;
 function frame(now){
@@ -370,7 +371,7 @@ $('spd').onclick=()=>{const f=zoomNow(),next=ZOOMS.find(z=>z>f*1.15);
   if(!next){map.fitBounds(BOUNDS,{padding:20,duration:500});return;}
   const c=riding?posAt(riding.route,riding.s):me;
   map.easeTo({zoom:fitZoom()+Math.log2(next),center:c?toLL(c.x,c.y):undefined,duration:500});};
-$('fit').onclick=()=>map.fitBounds(BOUNDS,{padding:{top:40,bottom:40,left:20,right:60},pitch:threeD?50:0,bearing:0});
+$('fit').onclick=()=>map.fitBounds(BOUNDS,{padding:{top:40,bottom:40+sheetCover,left:20,right:60},pitch:threeD?50:0,bearing:0});
 $('d3').onclick=e=>{threeD=!threeD;e.currentTarget.textContent=threeD?'2D':'3D';
   if(ready)map.setPaintProperty('bld','fill-extrusion-height',threeD?['get','h']:0);map.easeTo({pitch:threeD?50:0,duration:500});};
 $('stops').textContent=V_NODE?END_NAME.A+' · Stop 54 · '+END_NAME.B:END_NAME.A+' · '+END_NAME.B;
@@ -442,14 +443,22 @@ $('devAdd').onclick=()=>{setEdit(devEdit==='add'?null:'add');if(devEdit)toast('T
 $('devDel').onclick=()=>{setEdit(devEdit==='del'?null:'del');if(devEdit)toast('Tap a piece of the cart route to remove it',3000);};
 $('devSave').onclick=()=>{if(draft.length<2){toast('Tap at least two points on the road');return;}DEV_ROUTE.add.push(draft.map(keyLL));saveRoute('Road added');};
 
-// ---------- bottom sheet: drag the handle down (or tap it) to show only the countdown, up to show it all ----------
-{const sh=$('sheet'),g=$('grab');let y0=null;
- const setMin=on=>{if(sh.classList.contains('min')===on)return;
-   // animate the height: measure both sizes, then slide from one to the other (map grows or shrinks with it)
-   const h0=sh.offsetHeight;sh.classList.toggle('min',on);const h1=sh.offsetHeight;
-   if(!matchMedia('(prefers-reduced-motion: reduce)').matches){sh.style.overflow='hidden';sh.style.height=h0+'px';sh.offsetHeight;sh.style.transition='height .3s cubic-bezier(.2,.8,.2,1)';sh.style.height=h1+'px';
-     const done=()=>{sh.style.height=sh.style.transition=sh.style.overflow='';sh.removeEventListener('transitionend',done);};sh.addEventListener('transitionend',done);setTimeout(done,450);}
-  g.setAttribute('aria-expanded',String(!on));g.setAttribute('aria-label',on?'Show more':'Show less');};
- g.onclick=()=>{if(y0===null)setMin(!sh.classList.contains('min'));};
- sh.addEventListener('pointerdown',e=>{if(e.target===g||e.target.closest('#next')){y0=e.clientY;}});
- addEventListener('pointerup',e=>{if(y0===null)return;const dy=e.clientY-y0;if(dy>30)setMin(true);else if(dy<-30)setMin(false);else if(e.target===g)setMin(!sh.classList.contains('min'));setTimeout(()=>{y0=null},0);});}
+// ---------- bottom sheet: it floats over the map and follows the finger; past either end it stretches like rubber ----------
+// moving it is only a CSS transform, so the map never resizes or redraws while you drag
+let sheetCover=0;   // how much of the map the sheet covers now, in px
+{const sh=$('sheet'),g=$('grab');let off=0,collapsed=false,y0=null,o0=0,lastY=0,lastT=0,vel=0,moved=false;
+ const maxOff=()=>Math.max(0,sh.offsetHeight-($('next').offsetTop+$('next').offsetHeight+10));   // collapsed: only the countdown row shows
+ const rubber=x=>(1-1/(x*0.55/200+1))*200;   // pulls less the further you go
+ const apply=o=>{const m=maxOff(),v=o<0?-rubber(-o):o>m?m+rubber(o-m):o;sh.style.transform='translateY('+v+'px)';sheetCover=Math.max(0,sh.offsetHeight-v);wrap.style.setProperty('--cover',sheetCover+'px');};   // toast, credit and dev panel sit above the sheet
+ const snap=c=>{collapsed=c;off=c?maxOff():0;sh.style.transition='transform .35s cubic-bezier(.2,.9,.25,1)';apply(off);
+   g.setAttribute('aria-expanded',String(!c));g.setAttribute('aria-label',c?'Show more':'Show less');};
+ sh.addEventListener('pointerdown',e=>{if(!(e.target===g||e.target.closest('#next')||e.target.closest('.hd')))return;
+   y0=lastY=e.clientY;lastT=e.timeStamp;o0=off;vel=0;moved=false;sh.style.transition='none';try{sh.setPointerCapture(e.pointerId)}catch(_){}});
+ sh.addEventListener('pointermove',e=>{if(y0===null)return;const dy=e.clientY-y0;if(Math.abs(dy)>4)moved=true;
+   if(e.timeStamp>lastT)vel=(e.clientY-lastY)/(e.timeStamp-lastT);lastY=e.clientY;lastT=e.timeStamp;off=o0+dy;apply(off);});
+ const end=e=>{if(y0===null)return;y0=null;const m=maxOff();
+   if(!moved){if(e.target===g)snap(!collapsed);else snap(collapsed);return;}
+   snap(vel>0.4?true:vel<-0.4?false:off>m/2);};   // a flick decides, otherwise the nearer end
+ sh.addEventListener('pointerup',end);sh.addEventListener('pointercancel',end);
+ g.onclick=e=>{if(e.detail===0)snap(!collapsed);};   // keyboard Enter/Space
+ new ResizeObserver(()=>{off=collapsed?maxOff():0;apply(off);}).observe(sh);}
