@@ -13,7 +13,7 @@ const HEX = {
   accent4: "8AA8A6", accent5: "5B6B6C", accent6: "D9E6E4",
   hlink: "3A7D7B", folHlink: "5B6B6C",
 };
-const THEME = { name: "P05 Shuttle", headFontFace: "Cambria", bodyFontFace: "Calibri", colors: HEX };
+const THEME = { name: "P05 Shuttle", headFontFace: "Arial", bodyFontFace: "Calibri", colors: HEX };
 
 async function icon(Comp, color) {
   const svg = RDS.renderToStaticMarkup(React.createElement(Comp, { color: "#" + color, size: 256 }));
@@ -60,6 +60,10 @@ async function icon(Comp, color) {
   });
 
   // ---------- Icons ----------
+  // app screenshots (1170 x 2532 px phone shots) and strips cut from them, for the slides' empty space
+  const shot = f => path.join(__dirname, "screens", f + ".png");
+  const crop = async (f, top, height) => "image/png;base64," + (await sharp(shot(f)).extract({ left: 0, top, width: 1170, height }).png().toBuffer()).toString("base64");
+  const phone = (s, f, x, y, h, name) => s.addImage({ path: shot(f), x, y, w: h * 390 / 844, h, objectName: name, altText: "App screenshot: " + name });
   const I = {};
   const want = {
     van: [fa.FaShuttleVan, HEX.accent1], van2: [fa.FaShuttleVan, HEX.lt1], user: [fa.FaUserGraduate, HEX.lt1], pin: [fa.FaMapMarkerAlt, HEX.lt1],
@@ -92,7 +96,7 @@ async function icon(Comp, color) {
     { text: "P05 · INT335 Design Thinking · Section TF", options: { breakLine: true } },
     { text: "Kumari Akanksha Jha · Soham Ghosh · Sakshi · Rehan", options: { fontSize: 16 } },
   ], { placeholder: "body" });
-  s.addImage({ data: I.van, x: 9.9, y: 2.2, w: 2.6, h: 2.6, objectName: "Shuttle icon", altText: "Campus shuttle" });
+  phone(s, "1-waiting", 9.75, 0.75, 6.0, "LPU CartNet showing carts coming to you");
   s.addNotes("Introduce the team and the project: campus carts at LPU and the students who wait for them.");
 
   // ---------- 2. Problem ----------
@@ -378,6 +382,7 @@ async function icon(Comp, color) {
   s.addNotes("CP4.4 to CP4.7 and CP4.9. Only say the weights were fixed before scoring if the team really agreed and dated them first. Change any score the team disagrees with.");
 
   // ---------- 14. How the concept works ----------
+  const CR = [await crop("1-waiting", 1000, 340), await crop("2-destination", 1150, 340), await crop("1-waiting", 2010, 340)];
   s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Ideate" });
   s.addText("How the prediction app would work", { placeholder: "title" });
   const flow = [
@@ -387,11 +392,12 @@ async function icon(Comp, color) {
   ];
   flow.forEach((f, i) => {
     const x = 0.6 + i * 4.15;
-    card(s, x, 1.7, 3.8, 3.6, C.background2, f[1]);
+    card(s, x, 1.7, 3.8, 3.75, C.background2, f[1]);
     iconCircle(s, f[0], x + 0.35, 2.0, 1.0, C.accent2, f[1]);
     txt(s, String(i + 1), { x: x + 2.8, y: 2.05, w: 0.7, h: 0.8, fontFace: THEME.headFontFace, fontSize: 40, bold: true, color: C.accent4, align: "right" });
     txt(s, f[1], { x: x + 0.35, y: 3.3, w: 3.1, h: 0.5, fontSize: 20, bold: true, color: C.text2 });
-    txt(s, f[2], { x: x + 0.35, y: 3.85, w: 3.1, h: 1.2, fontSize: 15 });
+    txt(s, f[2], { x: x + 0.35, y: 3.85, w: 3.1, h: 0.55, fontSize: 14 });
+    s.addImage({ data: CR[i], x: x + 0.35, y: 4.45, w: 3.1, h: 3.1 * 340 / 1170, objectName: f[1] + " app strip", altText: ["Carts moving on the campus map", "The road your cart will drive", "Countdown to the next empty cart"][i] });
     if (i < 2) s.addImage({ data: I.arrow, x: x + 3.85, y: 3.3, w: 0.25, h: 0.25, objectName: "flow arrow " + i, altText: "then" });
   });
   card(s, 0.6, 5.6, 12.1, 0.85, C.accent6, "Constraint note");
@@ -443,12 +449,12 @@ async function icon(Comp, color) {
   pres.addSection({ title: "Next steps" });
   s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Next steps" });
   s.addText("What's still open, and what comes next", { placeholder: "title" });
-  card(s, 0.6, 1.6, 5.9, 4.9, C.background2, "Limits card");
+  card(s, 0.6, 1.6, 5.9, 3.3, C.background2, "Limits card");
   iconCircle(s, "warn", 0.95, 1.9, 0.75, C.accent3, "Limits");
   txt(s, "Limits of our evidence", { x: 1.9, y: 2.0, w: 4.4, h: 0.55, fontSize: 20, bold: true, color: C.text2, valign: "middle" });
   const lim = [["Interviews: ", "only students; drivers declined"], ["Observation: ", "one session per stop and time"], ["Data: ", "directions and counting method to confirm"], ["Rides: ", "14 timed, only 5 with full records so far"]];
-  txt(s, lim.map((t, j) => [{ text: t[0], options: { bold: true } }, { text: t[1], options: { breakLine: j < lim.length - 1 } }]).flat(), { x: 0.95, y: 2.95, w: 5.25, h: 3.2, fontSize: 17, paraSpaceAfter: 14 });
-  card(s, 6.8, 1.6, 5.9, 4.9, C.background2, "Next card");
+  txt(s, lim.map((t, j) => [{ text: t[0], options: { bold: true } }, { text: t[1], options: { breakLine: j < lim.length - 1 } }]).flat(), { x: 0.95, y: 2.95, w: 5.25, h: 1.85, fontSize: 15, paraSpaceAfter: 8 });
+  card(s, 6.8, 1.6, 5.9, 3.3, C.background2, "Next card");
   iconCircle(s, "check", 7.15, 1.9, 0.75, C.accent2, "Next steps");
   txt(s, "Next steps", { x: 8.1, y: 2.0, w: 4.4, h: 0.55, fontSize: 20, bold: true, color: C.text2, valign: "middle" });
   const nxt = [
@@ -457,14 +463,18 @@ async function icon(Comp, color) {
     ["CP6 Test: ", "try the app with students at our stops, and compare its waits with new stopwatch timings"],
     ["Also: ", "try again to get the drivers' side"],
   ];
-  txt(s, nxt.map((t, j) => [{ text: t[0], options: { bold: true } }, { text: t[1], options: { breakLine: j < nxt.length - 1 } }]).flat(), { x: 7.15, y: 2.95, w: 5.25, h: 3.2, fontSize: 17, paraSpaceAfter: 14 });
+  txt(s, nxt.map((t, j) => [{ text: t[0], options: { bold: true } }, { text: t[1], options: { breakLine: j < nxt.length - 1 } }]).flat(), { x: 7.15, y: 2.95, w: 5.25, h: 1.85, fontSize: 15, paraSpaceAfter: 8 });
+  // the app as it is today, along the foot of the slide
+  const today = [["1-waiting", 700, "Carts coming to you"], ["3-riding", 900, "Riding: the map follows your cart"], ["4-collapsed", 800, "Route to 2nd Stop"], ["5-map", 700, "Block names on the campus map"]];
+  for (const [i, [f, top, alt]] of today.entries())
+    s.addImage({ data: await crop(f, top, 706), x: 0.6 + i * 3.075, y: 5.05, w: 2.875, h: 2.875 * 706 / 1170, objectName: "App today " + (i + 1), altText: "App screenshot: " + alt });
   s.addNotes("Be upfront about the limits. The next checkpoints build and test the arrival-prediction idea with real students.");
 
   // ---------- 14. Close ----------
   s = pres.addSlide({ masterName: "TITLE_DARK", sectionTitle: "Next steps" });
   s.addText("Thank you", { placeholder: "title" });
   s.addText("Questions and feedback welcome", { placeholder: "body" });
-  s.addImage({ data: I.van, x: 9.9, y: 2.2, w: 2.6, h: 2.6, objectName: "Shuttle icon", altText: "Campus shuttle" });
+  phone(s, "5-map", 9.75, 0.75, 6.0, "LPU CartNet campus map");
 
   const out = path.join(__dirname, "P05_Waiting_for_the_Shuttle.pptx");
   await pres.writeFile({ fileName: out });
