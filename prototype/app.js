@@ -47,7 +47,10 @@ els.forEach(e=>{if(e.type!=='way')return;const t=e.tags||{},g=e.geometry,closed=
     g.forEach(p=>inside(p)?run.push(p):flush());flush();
     if(!window.CART_ROUTE&&CART_ROADS[t.highway])for(let i=1;i<g.length;i++)if(inside(g[i-1])&&inside(g[i])){N[nk(g[i-1])]=toXY(g[i-1]);N[nk(g[i])]=toXY(g[i]);E0.push([nk(g[i-1]),nk(g[i])]);}
     if(t.name)PLACES.push([...toXY(g[g.length>>1]),t.name]);}
-  else if((t.leisure||t.landuse)&&closed&&inside(mid(g)))feats.push({type:'Feature',properties:{kind:'green'},geometry:{type:'Polygon',coordinates:[g]}});});
+  else if(closed&&inside(mid(g))){   // areas, coloured as on openstreetmap.org
+    const cls=t.amenity==='parking'?'parking':t.natural==='water'?'water':t.leisure==='pitch'?'pitch':t.leisure==='sports_centre'?'sport':
+      t.leisure==='park'||t.leisure==='garden'||t.landuse==='grass'||t.natural==='grassland'?'green':t.landuse==='farmyard'?'farm':null;
+    if(cls)feats.push({type:'Feature',properties:{kind:'area',cls},geometry:{type:'Polygon',coordinates:[g]}});}});
 const CAMPUS={type:'FeatureCollection',features:feats};
 (window.BLOCKS||[]).forEach(([no,name,lng,lat])=>PLACES.push([...toXY([lng,lat]),/^\d/.test(no)?'Block '+no:name]));
 // carts use only the roads the team drew (map/cart-route.js); lines join where they share a point
@@ -214,19 +217,24 @@ const BOUNDS=(()=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;mainPath.forEach(k=>{const 
 const wrap=$('mapwrap'),cv=$('c'),ctx=cv.getContext('2d');let W=0,H=0,dpr=1,ready=false;
 const map=new maplibregl.Map({container:'map',pixelRatio:Math.min(2,window.devicePixelRatio||1),fadeDuration:0,renderWorldCopies:false, // 2x is sharp enough and much lighter than 3x phones
   bounds:BOUNDS,fitBoundsOptions:{padding:{top:40,bottom:40,left:20,right:60}},pitch:50,maxPitch:70,maxZoom:20,attributionControl:false,bearingSnap:0,
-  style:{version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#ece6da'}}]}});
+  style:{version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#f2efe9'}}]}});
 const kind=k=>['==',['get','kind'],k];
 map.on('load',()=>{
   map.addSource('campus',{type:'geojson',data:CAMPUS});map.addSource('net',{type:'geojson',data:NET});map.addSource('ride',{type:'geojson',data:EMPTY});
-  map.addLayer({id:'outline',type:'fill',source:'campus',filter:kind('outline'),paint:{'fill-color':'#f8f6f1'}});
-  map.addLayer({id:'green',type:'fill',source:'campus',filter:kind('green'),paint:{'fill-color':'#dfe8d3'}});
-  map.addLayer({id:'road',type:'line',source:'campus',filter:kind('road'),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#e2dbcf','line-width':['interpolate',['linear'],['zoom'],14,1.5,19,11]}});
-  map.addLayer({id:'path',type:'line',source:'campus',filter:kind('path'),paint:{'line-color':'#cfc6b8','line-width':1,'line-dasharray':[2,2]}});
-  map.addLayer({id:'net',type:'line',source:'net',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#b9aea0','line-width':['interpolate',['linear'],['zoom'],14,2,19,9]}});
+  // colours follow the openstreetmap.org standard map: yellow campus, green parks, teal pitches, grey parking, white roads
+  map.addLayer({id:'outline',type:'fill',source:'campus',filter:kind('outline'),paint:{'fill-color':'#ffffe5'}});
+  map.addLayer({id:'area',type:'fill',source:'campus',filter:kind('area'),paint:{'fill-color':['match',['get','cls'],'green','#cdebb0','pitch','#aae0cb','sport','#dffce2','water','#aad3df','parking','#eeeeee','farm','#f5dcba','#cdebb0'],
+    'fill-outline-color':['match',['get','cls'],'pitch','#88c8af','parking','#d4d4d4','water','#8fbfd0','sport','#b5e6bf','#b9d89c']}});
+  const rw=k=>['interpolate',['linear'],['zoom'],14,1.5*k,19,11*k];
+  map.addLayer({id:'road-case',type:'line',source:'campus',filter:kind('road'),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#bbb3a8','line-width':['interpolate',['linear'],['zoom'],14,2.5,19,13]}});
+  map.addLayer({id:'road',type:'line',source:'campus',filter:kind('road'),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':rw(1)}});
+  map.addLayer({id:'path',type:'line',source:'campus',filter:kind('path'),paint:{'line-color':'#fa8072','line-width':['interpolate',['linear'],['zoom'],15,1,19,2],'line-dasharray':[1.5,1.5]}});
+  map.addLayer({id:'bld-line',type:'line',source:'campus',filter:kind('building'),paint:{'line-color':'#c4b6ab','line-width':1}});
+  map.addLayer({id:'net',type:'line',source:'net',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#a39382','line-opacity':.55,'line-width':['interpolate',['linear'],['zoom'],14,1.5,19,5]}});   // the cart route, on top of the white road
   map.addSource('coming',{type:'geojson',data:EMPTY});   // carts coming to your place: dashed, on the road itself
   map.addLayer({id:'coming',type:'line',source:'coming',layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':['case',['get','ok'],'#15803d','#78716c'],'line-opacity':['case',['get','ok'],.9,.6],'line-width':['interpolate',['linear'],['zoom'],14,2,19,6],'line-dasharray':[2,1.5]}});
   map.addLayer({id:'ride',type:'line',source:'ride',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#6b1d12','line-width':['interpolate',['linear'],['zoom'],14,3,19,10]}});
-  map.addLayer({id:'bld',type:'fill-extrusion',source:'campus',filter:kind('building'),paint:{'fill-extrusion-color':['match',['get','bt'],'academic','#d6cfc2','hostel','#d9cbbf','#ddd7cc'],'fill-extrusion-height':['get','h'],'fill-extrusion-opacity':.9}});
+  map.addLayer({id:'bld',type:'fill-extrusion',source:'campus',filter:kind('building'),paint:{'fill-extrusion-color':'#d9d0c9','fill-extrusion-height':['get','h'],'fill-extrusion-opacity':.95}});
   map.addLayer({id:'outline-line',type:'line',source:'campus',filter:kind('outline'),paint:{'line-color':'#6b1d12','line-width':1.5,'line-opacity':.5}});
   // no zooming out past a little more than the whole route
   const fitZ=map.cameraForBounds(BOUNDS,{padding:20});if(fitZ&&fitZ.zoom)map.setMinZoom(fitZ.zoom-0.5);

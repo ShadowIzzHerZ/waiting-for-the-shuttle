@@ -35,7 +35,7 @@ Developer option: tap the logo, then Place Point A or Place Point B and tap the 
 
 Stops are `STOPS` in `app.js` as `[longitude, latitude]`; each snaps to the nearest cart road. A and B are approximate, and stop 54 is not placed yet (`V:null`, carts then run A to B directly). Set 54 to its real spot to make it a via stop.
 
-Carts use OpenStreetMap roads of the types in `CART_ROADS`; dead ends are dropped. To refresh the map data: `python3 tools/osm_snapshot.py` (writes `map/campus-osm.js`).
+Carts use OpenStreetMap roads of the types in `CART_ROADS`; dead ends are dropped. To refresh the map data: `python3 tools/osm_snapshot.py` (writes `map/campus-osm.js`). It keeps buildings (including multi-part ones), roads, parks, pitches, water and parking, and adds five buildings missing from OpenStreetMap that Dushyant Pal traced for lpu-wayfinder (the Block 6/7/8 complex and two more). The map colours follow the openstreetmap.org standard map.
 
 `draw.html`, `drawings/`, `map/lpu*.jpg`, `map/net.json` and `tools/net.py`/`roads3.py` belong to the old isometric map and are no longer used by the app.
 
