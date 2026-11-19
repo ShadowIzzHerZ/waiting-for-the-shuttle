@@ -5,7 +5,7 @@
 const GAPS=[69,105,43,64,94,54,159,92,107,68,42,73,55,104,39,83,34,50,44,76,31,62,52,144,34,39,109,67,80,124,32,43,41,93,88,81,155,53,276,78,175,111,664,356,293,30,71,258,72,308,209,110,60,207,61,98,237,167,144,180,144,100,59,187,461,70,135,31,372,76,160,165,128]; // our 73 stopwatch gaps (s)
 const SIM_SPEED=1;                             // carts run in real time
 const SPEED_KMH=[16.5,19.5];                   // km/h; 18 km/h average makes the A-B trip about 5:37
-const P_FULL=0.65,P_PICKUP=0.30,P_DETOUR=0.30; // carts leaving full / filling on the way / taking another path
+const P_FULL=0.65,P_PICKUP=0.30,P_OTHER=0.45; // carts leaving full / filling on the way / an empty cart taking another marked way
 const CORNER=6;                                // corner rounding radius in metres
 // Stops [lng, lat]. shortcut: A and B are the old approximate GPS anchors and 54 is not placed yet; replace with measured spots.
 const DEF_STOPS=window.CART_ROUTE?{A:CART_ROUTE.A,B:CART_ROUTE.B,V:null}:{A:[75.7059,31.2512],B:[75.7016,31.2584],V:null}; // the team's drawn route (map/cart-route.js) sets A and B
@@ -81,7 +81,6 @@ const mainPath=via(A_NODE,B_NODE);
 if(!mainPath){
   if(DEV_STOPS){try{localStorage.removeItem('devStops')}catch(_){}alert('No cart road joins the placed Point A and Point B. Going back to the default stops.');location.reload();}
   throw new Error('No road joins stop A to stop B');}
-const mainKeys=new Set(mainPath.slice(1).map((k,i)=>ekey(mainPath[i],k)));
 
 // ---------- routes with rounded corners ----------
 function mkRoute(nodes){
@@ -91,13 +90,21 @@ function mkRoute(nodes){
   rad.push(0);
   return {nodes,pts,cum,rad,len:cum[cum.length-1]};
 }
-function randomRoute(from,to){
-  const w={},jit=k=>w[k]===undefined?(w[k]=1+Math.random()*.15):w[k];
-  if(Math.random()<P_DETOUR){ // a different path: make the usual roads look longer so another loop gets chosen
-    const pen=1.4+Math.random()*1.6;return mkRoute(via(from,to,k=>jit(k)*(mainKeys.has(k)&&Math.random()<.8?pen:1)));
-  }
-  return mkRoute(via(from,to,jit));
+// Ways a cart can go: the fastest one, plus one through each road the team marked (map/cart-route.js), so every marked road is used.
+function routeVariants(from,to){
+  const fast=via(from,to),seen=new Set([fast.join('>')]),others=[];
+  (window.CART_ROUTE?Object.values(CART_ROUTE.lines):[]).forEach(g=>{
+    const ks=g.map(nk).filter(k=>adj[k]);if(ks.length<2)return;
+    const on=new Set();for(let i=1;i<ks.length;i++)on.add(ekey(ks[i-1],ks[i]));
+    const along=path(ks[0],ks[ks.length-1],k=>on.has(k)?1:1e6);if(!along)return;   // the marked road, end to end
+    for(const seg of [along,along.slice().reverse()]){           // drive it either way
+      const p1=path(from,seg[0]),p2=path(seg[seg.length-1],to);if(!p1||!p2)continue;
+      const p=p1.concat(seg.slice(1),p2.slice(1)),es=new Set();let ok=true;
+      for(let i=1;i<p.length&&ok;i++){const e=ekey(p[i-1],p[i]);if(es.has(e))ok=false;es.add(e);}   // no doubling back on a road
+      const key=p.join('>');if(ok&&!seen.has(key)){seen.add(key);others.push(p);}}});
+  return {fast,others};
 }
+const VARIANTS={A:routeVariants(A_NODE,B_NODE),B:routeVariants(B_NODE,A_NODE)};
 // position at distance s along the route; corners are quadratic curves
 function posAt(r,s){
   s=Math.max(0,Math.min(r.len,s));let i=1;while(i<r.cum.length-1&&r.cum[i]<s)i++;
@@ -113,8 +120,10 @@ function posAt(r,s){
 // ---------- carts ----------
 let carts=[],nextId=1,spawnT={A:0,B:0};
 function spawn(dir,progress){
-  const r=randomRoute(dir==='A'?A_NODE:B_NODE,dir==='A'?B_NODE:A_NODE);
-  const full=Math.random()<P_FULL,s=(progress||0)*r.len;
+  // a full cart goes the fastest way; an empty one sometimes takes another marked way, looking for students
+  const full=Math.random()<P_FULL,V=VARIANTS[dir];
+  const nodes=!full&&V.others.length&&Math.random()<P_OTHER?V.others[Math.floor(Math.random()*V.others.length)]:V.fast;
+  const r=mkRoute(nodes),s=(progress||0)*r.len;
   const pickupAt=(!full&&Math.random()<P_PICKUP)?r.len*(0.2+Math.random()*0.65):null;
   const c={id:nextId++,dir,route:r,s,v:(SPEED_KMH[0]+Math.random()*(SPEED_KMH[1]-SPEED_KMH[0]))/3.6,full,pickupAt,flash:0,ok:false,eta:null};
   if(pickupAt!==null&&pickupAt<=s){c.full=true;c.pickupAt=null;}
