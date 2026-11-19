@@ -64,6 +64,14 @@ async function icon(Comp, color) {
   const shot = f => path.join(__dirname, "screens", f + ".png");
   const crop = async (f, top, height) => "image/png;base64," + (await sharp(shot(f)).extract({ left: 0, top, width: 1170, height }).png().toBuffer()).toString("base64");
   const phone = (s, f, x, y, h, name) => s.addImage({ path: shot(f), x, y, w: h * 390 / 844, h, objectName: name, altText: "App screenshot: " + name });
+  // small charts drawn with shapes, for the empty foot of a number card
+  const rect = (s, x, y, w, h, fill, name) => s.addShape(pres.shapes.RECTANGLE, { x, y, w, h, fill: { color: fill }, line: { type: "none" }, objectName: name });
+  const miniBars = (s, x, y, w, items, max, fmt, name) => items.forEach(([lab, v, col], i) => {   // label, bar, value on one row each
+    const yy = y + i * 0.24, bw = (w - 1.45) * v / max;
+    txt(s, lab, { x, y: yy, w: 1.0, h: 0.22, fontSize: 10, color: C.text1, valign: "middle" });
+    rect(s, x + 1.0, yy + 0.04, Math.max(0.03, bw), 0.14, col, name + " bar " + (i + 1));
+    txt(s, fmt(v), { x: x + 1.05 + bw, y: yy, w: 0.45, h: 0.22, fontSize: 10, bold: true, color: C.text1, valign: "middle" });
+  });
   const I = {};
   const want = {
     van: [fa.FaShuttleVan, HEX.accent1], van2: [fa.FaShuttleVan, HEX.lt1], user: [fa.FaUserGraduate, HEX.lt1], pin: [fa.FaMapMarkerAlt, HEX.lt1],
@@ -162,11 +170,26 @@ async function icon(Comp, color) {
   }, chartText));
   phone(s, "2-destination", 6.75, 1.6, 4.9, "the app shows the wait and the ride time for your stop");
   card(s, 9.2, 1.6, 3.5, 2.3, C.background2, "Median wait");
-  txt(s, "5:56", { x: 9.55, y: 1.8, w: 3, h: 1.0, fontFace: THEME.headFontFace, fontSize: 54, bold: true, color: C.accent3 });
-  txt(s, "median wait, 5 rides with full timings", { x: 9.55, y: 2.9, w: 3, h: 0.8, fontSize: 16 });
+  txt(s, "5:56", { x: 9.55, y: 1.7, w: 3, h: 0.8, fontFace: THEME.headFontFace, fontSize: 46, bold: true, color: C.accent3 });
+  txt(s, "median wait, 5 rides with full timings", { x: 9.55, y: 2.5, w: 3, h: 0.45, fontSize: 14 });
+  {   // dot plot of the five waits on a 4:00 to 10:00 line, median in red
+    const x0 = 9.65, x1 = 12.25, X = t => x0 + (x1 - x0) * (t - 240) / 360;
+    rect(s, x0, 3.38, x1 - x0, 0.02, HEX.accent4, "Wait scale");
+    [287, 590, 356, 394, 299].forEach((t, i) => s.addShape(pres.shapes.OVAL, { x: X(t) - 0.08, y: 3.31, w: 0.16, h: 0.16, fill: { color: t === 356 ? HEX.accent3 : HEX.accent1 }, line: { color: HEX.lt1, width: 1 }, objectName: "Wait dot " + (i + 1) }));
+    txt(s, "4:00", { x: x0 - 0.2, y: 3.5, w: 0.5, h: 0.22, fontSize: 10, color: C.accent5 });
+    txt(s, "10:00", { x: x1 - 0.3, y: 3.5, w: 0.55, h: 0.22, fontSize: 10, color: C.accent5, align: "right" });
+    txt(s, "each ride's wait", { x: 10.4, y: 3.5, w: 1.1, h: 0.22, fontSize: 10, color: C.accent5, align: "center" });
+  }
   card(s, 9.2, 4.2, 3.5, 2.3, C.background2, "Median ride");
-  txt(s, "6:44", { x: 9.55, y: 4.4, w: 3, h: 1.0, fontFace: THEME.headFontFace, fontSize: 54, bold: true, color: C.accent2 });
-  txt(s, "median time in the cart, same 5 rides", { x: 9.55, y: 5.5, w: 3, h: 0.8, fontSize: 16 });
+  txt(s, "6:44", { x: 9.55, y: 4.3, w: 3, h: 0.8, fontFace: THEME.headFontFace, fontSize: 46, bold: true, color: C.accent2 });
+  txt(s, "median time in the cart, same 5 rides", { x: 9.55, y: 5.1, w: 3, h: 0.45, fontSize: 14 });
+  {   // the whole trip as one bar: 47% of it is waiting (5:56 of 12:40)
+    const w = 2.6, ww = w * 356 / (356 + 404);
+    rect(s, 9.65, 5.72, ww, 0.3, HEX.accent1, "Trip bar: wait");
+    rect(s, 9.65 + ww, 5.72, w - ww, 0.3, HEX.accent2, "Trip bar: ride");
+    txt(s, "waiting 47%", { x: 9.65, y: 6.05, w: 1.3, h: 0.25, fontSize: 11, bold: true, color: C.accent3 });
+    txt(s, "riding 53%", { x: 11.0, y: 6.05, w: 1.25, h: 0.25, fontSize: 11, bold: true, color: C.text2, align: "right" });
+  }
   s.addNotes("We timed 14 rides. These 5 have complete stopwatch screenshots; the other 9 still need to be added. Lap 1 is the wait, the rest is time in the cart. n = 5, so we report the median and range (wait 4:47 to 9:50).");
 
   // ---------- 5. Stops chart ----------
@@ -188,11 +211,16 @@ async function icon(Comp, color) {
   }, chartText));
   phone(s, "1-waiting", 7.1, 1.6, 4.8, "two carts coming to the same stop at different times");
   card(s, 9.6, 1.6, 3.1, 2.25, C.background2, "Longest gap callout");
-  txt(s, "10:49", { x: 9.9, y: 1.75, w: 2.6, h: 0.9, fontFace: THEME.headFontFace, fontSize: 44, bold: true, color: C.accent3 });
-  txt(s, "longest gap between carts, Education Park", { x: 9.9, y: 2.7, w: 2.6, h: 0.9, fontSize: 15 });
+  txt(s, "10:49", { x: 9.85, y: 1.68, w: 2.7, h: 0.7, fontFace: THEME.headFontFace, fontSize: 40, bold: true, color: C.accent3 });
+  txt(s, "longest gap between carts, Education Park", { x: 9.85, y: 2.38, w: 2.7, h: 0.45, fontSize: 13 });
+  txt(s, "carts seen in each session", { x: 9.85, y: 2.85, w: 2.7, h: 0.22, fontSize: 10, color: C.accent5 });
+  miniBars(s, 9.85, 3.07, 2.7, [["Bakery", 19, HEX.accent2], ["Edu Park", 7, HEX.accent3], ["Pharmacy", 10.5, HEX.accent1]], 19, v => (v === 7 ? "5, 9" : v === 19 ? "19, 19" : "12, 9"), "Carts seen");
   card(s, 9.6, 4.15, 3.1, 2.25, C.background2, "Bakery callout");
-  txt(s, "~1 min", { x: 9.9, y: 4.3, w: 2.6, h: 0.9, fontFace: THEME.headFontFace, fontSize: 44, bold: true, color: C.accent2 });
-  txt(s, "typical wait at Lovely Bakery, both sessions", { x: 9.9, y: 5.25, w: 2.6, h: 0.9, fontSize: 15 });
+  txt(s, "~1 min", { x: 9.85, y: 4.23, w: 2.7, h: 0.7, fontFace: THEME.headFontFace, fontSize: 40, bold: true, color: C.accent2 });
+  txt(s, "typical wait at Lovely Bakery, both sessions", { x: 9.85, y: 4.93, w: 2.7, h: 0.45, fontSize: 13 });
+  txt(s, "typical wait at each stop", { x: 9.85, y: 5.4, w: 2.7, h: 0.22, fontSize: 10, color: C.accent5 });
+  const mmss = v => Math.floor(v / 60) + ":" + String(Math.round(v % 60)).padStart(2, "0");
+  miniBars(s, 9.85, 5.62, 2.7, [["Bakery", 64, HEX.accent2], ["Edu Park", 168, HEX.accent3], ["Pharmacy", 110, HEX.accent1]], 168, mmss, "Typical wait");
   txt(s, "Stopwatch sessions on 14 Oct, one per stop and time. Typical wait = the average wait for someone who arrives at a random moment. Carts also arrived in bunches, then a long gap.", { x: 0.6, y: 6.45, w: 12.1, h: 0.45, fontSize: 11, color: C.accent5 });
   s.addNotes("Each set is one stopwatch session where every tap is a cart arriving. Taps under 30 seconds apart were merged. Directions at Education Park and Pharmacy Park, and whether we counted all carts or only empty ones, are still to be confirmed.");
 
