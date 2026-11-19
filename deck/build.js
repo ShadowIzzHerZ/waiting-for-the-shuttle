@@ -231,22 +231,22 @@ async function icon(Comp, color) {
   // ---------- 8. Stakeholders ----------
   s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Empathise" });
   s.addText("Who is involved, and who we've heard from", { placeholder: "title" });
-  const sh = [
-    ["user", "Students without vehicles", "Primary users. They walk to the stops and wait for a cart to cross campus.", "Interviewed (21)", C.accent2],
-    ["van2", "Cart drivers", "Run the carts as an independent service and decide when a cart leaves, usually once it's full.", "Declined: not allowed", C.accent3],
+  const sh = [   // role and status as in the team's 12 Nov stakeholder slide
+    ["Students without vehicles", "Primary users: they wait at the stops", "Interviewed (21)", C.accent2],
+    ["Cart drivers", "Run the carts and decide when to leave", "Declined: not allowed", C.accent3],
+    ["Transport office", "Owns the carts, routes and schedules", "Permission requested", C.accent1],
+    ["Gate security", "Sees crowds at gates and outposts", "Not yet interviewed", C.accent5],
+    ["University administration", "Approves any app or schedule change", "Not yet contacted", C.accent5],
   ];
   sh.forEach((r, i) => {
-    const x = 0.6 + i * 6.2;
-    card(s, x, 1.6, 5.9, 3.9, C.background2, r[1] + " card");
-    iconCircle(s, r[0], x + 0.4, 1.95, 1.0, r[4], r[1]);
-    txt(s, r[1], { x: x + 0.4, y: 3.15, w: 5.1, h: 0.55, fontSize: 22, bold: true, color: C.text2 });
-    txt(s, r[2], { x: x + 0.4, y: 3.75, w: 5.1, h: 1.0, fontSize: 16 });
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: x + 3.05, y: 2.2, w: 2.5, h: 0.5, rectRadius: 0.25, fill: { color: r[4] }, line: { type: "none" }, objectName: r[1] + " status" });
-    txt(s, r[3], { x: x + 3.05, y: 2.2, w: 2.5, h: 0.5, fontSize: 13, bold: true, color: C.background1, align: "center", valign: "middle" });
+    const y = 1.45 + i * 1.0;
+    if (i % 2 === 0) card(s, 0.6, y, 12.1, 0.85, C.background2, r[0] + " row");
+    txt(s, r[0], { x: 0.9, y, w: 3.6, h: 0.85, fontSize: 17, bold: true, color: C.text2, valign: "middle" });
+    txt(s, r[1], { x: 4.8, y, w: 4.6, h: 0.85, fontSize: 15, valign: "middle" });
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 9.65, y: y + 0.17, w: 2.8, h: 0.5, rectRadius: 0.25, fill: { color: r[3] }, line: { type: "none" }, objectName: r[0] + " status" });
+    txt(s, r[2], { x: 9.65, y: y + 0.17, w: 2.8, h: 0.5, fontSize: 13, bold: true, color: C.background1, align: "center", valign: "middle" });
   });
-  card(s, 0.6, 5.75, 12.1, 0.8, C.accent6, "Independent service note");
-  txt(s, [{ text: "The carts are an independent service, ", options: { bold: true, color: C.text2 } }, { text: "so the drivers decide when carts leave. Any fix has to work for students without changing how drivers operate." }], { x: 0.95, y: 5.82, w: 11.4, h: 0.65, fontSize: 15, valign: "middle" });
-  s.addNotes("Only two groups are involved: students who ride and the drivers who run the carts as an independent service. Drivers declined interviews, so our research so far covers students.");
+  s.addNotes("Our research so far covers only students. Drivers and the transport office have the most influence over a fix, so getting their view is a priority.");
 
   // ---------- 9. POV + HMW ----------
   pres.addSection({ title: "Define" });
@@ -420,20 +420,23 @@ async function icon(Comp, color) {
   // ---------- Prototype: how it works ----------
   s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Prototype" });
   s.addText("What the prototype is built from", { placeholder: "title" });
+  // the campus map on the left, what it is made of on the right
+  card(s, 0.6, 1.45, 2.95, 5.3, C.background2, "Campus map card");
+  s.addImage({ path: path.join(__dirname, "screens", "5-map.png"), x: 0.6 + (2.95 - 2.25) / 2, y: 1.6, w: 2.25, h: 2.25 * 844 / 390, objectName: "Campus map screenshot", altText: "App screenshot: the 3D campus map with block numbers and the cart route" });
   const parts = [
-    ["pin", "Real campus map", "3D campus from OpenStreetMap; the cart route is the one our team traced on it, from Main Stop to 2nd Stop"],
-    ["watch", "Our timing data", "Carts leave as often as our 73 stopwatch gaps say; most leave full, as we saw at the stops"],
-    ["mobile", "Your phone", "Live GPS shows where you are; or tap the map to pick your stop. Runs in a browser or as an Android app"],
+    ["pin", "Real campus map", "OpenStreetMap buildings and roads in 3D, block names from lpu-wayfinder (Dushyant Pal), and the roads around campus shown faded"],
+    ["stop", "The roads carts use", "The route our team marked, Main Stop to 2nd Stop. Full carts take the fastest way; an empty cart takes another marked way 45% of the time"],
+    ["watch", "Our timing data", "Carts leave as often as our 73 stopwatch gaps say, and most leave full, as we saw at the stops"],
+    ["mobile", "Your phone", "Live GPS shows where you are, or tap the map to pick your stop. Runs in a browser or as an Android app"],
   ];
   parts.forEach((f, i) => {
-    const x = 0.6 + i * 4.15;
-    card(s, x, 1.6, 3.8, 3.7, C.background2, f[1]);
-    iconCircle(s, f[0], x + 0.35, 1.9, 1.0, C.accent2, f[1]);
-    txt(s, f[1], { x: x + 0.35, y: 3.15, w: 3.1, h: 0.5, fontSize: 20, bold: true, color: C.text2 });
-    txt(s, f[2], { x: x + 0.35, y: 3.7, w: 3.1, h: 1.45, fontSize: 15 });
+    const y = 1.45 + i * 1.05;
+    iconCircle(s, f[0], 3.9, y + 0.1, 0.7, C.accent2, f[1]);
+    txt(s, f[1], { x: 4.85, y, w: 7.85, h: 0.4, fontSize: 17, bold: true, color: C.text2 });
+    txt(s, f[2], { x: 4.85, y: y + 0.4, w: 7.85, h: 0.6, fontSize: 14 });
   });
-  card(s, 0.6, 5.6, 12.1, 0.85, C.accent6, "Honesty note");
-  txt(s, [{ text: "Simulation, not live tracking: ", options: { bold: true, color: C.text2 } }, { text: "cart positions are generated from our timings, with no device on the carts. Cart speed (16.5 to 19.5 km/h) is an estimate." }], { x: 0.95, y: 5.7, w: 11.4, h: 0.65, fontSize: 15, valign: "middle" });
+  card(s, 3.9, 5.7, 8.8, 1.05, C.accent6, "Honesty note");
+  txt(s, [{ text: "Simulation, not live tracking: ", options: { bold: true, color: C.text2 } }, { text: "cart positions are generated from our timings, with no device on the carts. Cart speed (16.5 to 19.5 km/h) is an estimate." }], { x: 4.2, y: 5.78, w: 8.3, h: 0.9, fontSize: 14, valign: "middle" });
   s.addNotes("No hardware on the carts, as the problem statement requires. The 3D map is adapted from the lpu-wayfinder project by Dushyant Pal, with permission.");
 
   // ---------- 13. Limits + next ----------
