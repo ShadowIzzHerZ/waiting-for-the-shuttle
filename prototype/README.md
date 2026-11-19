@@ -31,7 +31,7 @@ The APK is debug-signed: fine for sideloading, not for the Play Store.
 ## Stops and the map data
 Cart route: `map/cart-route.js` holds the roads the team drew on `place.html`, snapped to OpenStreetMap roads, with stop A (Main Stop) and stop B (2nd Stop). Carts use only these roads. Without that file the app falls back to all OSM roads of the types in `CART_ROADS`.
 
-Developer option: tap the logo, then Place Point A or Place Point B and tap the map. The spot is saved in that browser or phone (it overrides `STOPS`) and the app reloads. The panel shows the coordinates; Reset goes back to the defaults.
+Developer option: tap the logo. Place Point A or Place Point B, then tap the map. Add road: tap along a road (each tap follows the real roads from the last one), then Save road. Remove road: tap a piece of the cart route to take it off (pieces the A to B trip depends on are refused). Edits stay in that browser until they are copied into `map/cart-route.js`; Reset clears them. The spot is saved in that browser or phone (it overrides `STOPS`) and the app reloads. The panel shows the coordinates; Reset goes back to the defaults.
 
 Stops are `STOPS` in `app.js` as `[longitude, latitude]`; each snaps to the nearest cart road. A and B are approximate, and stop 54 is not placed yet (`V:null`, carts then run A to B directly). Set 54 to its real spot to make it a via stop.
 

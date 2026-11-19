@@ -56,7 +56,11 @@ els.forEach(e=>{if(e.type!=='way')return;const t=e.tags||{},g=e.geometry,closed=
 const CAMPUS={type:'FeatureCollection',features:feats};
 (window.BLOCKS||[]).forEach(([no,name,lng,lat])=>PLACES.push([...toXY([lng,lat]),/^\d/.test(no)?'Block '+no:name]));
 // carts use only the roads the team drew (map/cart-route.js); lines join where they share a point
-if(window.CART_ROUTE)Object.values(CART_ROUTE.lines).forEach(g=>{for(let i=1;i<g.length;i++){N[nk(g[i-1])]=toXY(g[i-1]);N[nk(g[i])]=toXY(g[i]);E0.push([nk(g[i-1]),nk(g[i])]);}});
+// developer panel route edits (kept in this browser until copied into map/cart-route.js): roads added, pieces removed
+let DEV_ROUTE={add:[],remove:[]};try{const d=JSON.parse(localStorage.getItem('devRoute'));if(d&&d.add&&d.remove)DEV_ROUTE=d;}catch(_){}
+const DEV_EDITS=DEV_ROUTE.add.length+DEV_ROUTE.remove.length>0;
+if(window.CART_ROUTE)Object.values(CART_ROUTE.lines).concat(DEV_ROUTE.add).forEach(g=>{for(let i=1;i<g.length;i++){N[nk(g[i-1])]=toXY(g[i-1]);N[nk(g[i])]=toXY(g[i]);E0.push([nk(g[i-1]),nk(g[i])]);}});
+{const k2=(a,b)=>a<b?a+'|'+b:b+'|'+a,rm=new Set(DEV_ROUTE.remove.map(([a,b])=>k2(a,b)));for(let i=E0.length-1;i>=0;i--)if(rm.has(k2(...E0[i])))E0.splice(i,1);}
 
 // ---------- graph ----------
 // Carts only use roads that lie on some A-B route, so dead-end spurs are pruned from the network.
@@ -73,19 +77,19 @@ for(;;){const deg={};E.forEach(e=>{deg[e[0]]=(deg[e[0]]||0)+1;deg[e[1]]=(deg[e[1
   const keep=E.filter(e=>[e[0],e[1]].every(k=>deg[k]>1||k===A_NODE||k===B_NODE||k===V_NODE));if(keep.length===E.length)break;E=keep;}
 const adj={};E.forEach(([p,q])=>{const d=dist(p,q);(adj[p]=adj[p]||[]).push([q,d]);(adj[q]=adj[q]||[]).push([p,d]);});
 const NODES=Object.keys(adj);
-function dijkstra(s,wf,stop){ // wf(edgeKey) = weight multiplier; binary heap
+function dijkstra(s,wf,stop,G=adj){ // wf(edgeKey) = weight multiplier; binary heap; G = graph, the cart roads by default
   const D={},P={},h=[[0,s]];D[s]=0;
   const push=x=>{h.push(x);let i=h.length-1;while(i){const j=(i-1)>>1;if(h[j][0]<=h[i][0])break;[h[i],h[j]]=[h[j],h[i]];i=j;}};
   const pop=()=>{const top=h[0],l=h.pop();if(h.length){h[0]=l;let i=0;for(;;){let m=i;const a=2*i+1,b=a+1;if(a<h.length&&h[a][0]<h[m][0])m=a;if(b<h.length&&h[b][0]<h[m][0])m=b;if(m===i)break;[h[i],h[m]]=[h[m],h[i]];i=m;}}return top;};
   while(h.length){const [du,u]=pop();if(du>D[u])continue;if(u===stop)break;
-    adj[u].forEach(([v,d])=>{const nd=du+d*(wf?wf(ekey(u,v)):1);if(!(nd>=D[v])){D[v]=nd;P[v]=u;push([nd,v]);}});}
+    (G[u]||[]).forEach(([v,d])=>{const nd=du+d*(wf?wf(ekey(u,v)):1);if(!(nd>=D[v])){D[v]=nd;P[v]=u;push([nd,v]);}});}
   return {D,P};
 }
-function path(s,t,wf){const {P}=dijkstra(s,wf,t);const r=[t];while(r[0]!==s){if(P[r[0]]===undefined)return null;r.unshift(P[r[0]]);}return r;}
+function path(s,t,wf,G){const {P}=dijkstra(s,wf,t,G);const r=[t];while(r[0]!==s){if(P[r[0]]===undefined)return null;r.unshift(P[r[0]]);}return r;}
 const via=(a,b,wf)=>V_NODE?path(a,V_NODE,wf).concat(path(V_NODE,b,wf).slice(1)):path(a,b,wf);
 const mainPath=via(A_NODE,B_NODE);
 if(!mainPath){
-  if(DEV_STOPS){try{localStorage.removeItem('devStops')}catch(_){}alert('No cart road joins the placed Point A and Point B. Going back to the default stops.');location.reload();}
+  if(DEV_STOPS||DEV_EDITS){try{localStorage.removeItem('devStops');localStorage.removeItem('devRoute')}catch(_){}alert('No cart road joins Point A and Point B after the developer edits. Going back to the saved route and stops.');location.reload();}
   throw new Error('No road joins stop A to stop B');}
 
 // ---------- routes with rounded corners ----------
@@ -155,7 +159,7 @@ function routeDist(r,sn,s0){
 
 // ---------- state ----------
 const $=id=>document.getElementById(id);
-let riding=null,follow=false,me=null,gpsFix=null,watchId=null,devPlace=null,dest=null,paused=false,spi=0,best=null,simClock=0,toastT=null,rideFor=null,threeD=true;
+let devEdit=null,draft=[],riding=null,follow=false,me=null,gpsFix=null,watchId=null,devPlace=null,dest=null,paused=false,spi=0,best=null,simClock=0,toastT=null,rideFor=null,threeD=true;
 function toast(msg,ms){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),ms||2600);}
 const put=(id,s)=>{const el=$(id);if(el.textContent!==s)el.textContent=s;};
 const cid=c=>String(c.id).padStart(2,'0');
@@ -222,6 +226,7 @@ const map=new maplibregl.Map({container:'map',pixelRatio:Math.min(2,window.devic
   style:{version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#f2efe9'}}]}});
 const kind=k=>['==',['get','kind'],k];
 map.on('load',()=>{
+  map.addSource('draft',{type:'geojson',data:EMPTY});
   map.addSource('campus',{type:'geojson',data:CAMPUS});map.addSource('net',{type:'geojson',data:NET});map.addSource('ride',{type:'geojson',data:EMPTY});
   // colours follow the openstreetmap.org standard map: yellow campus, green parks, teal pitches, grey parking, white roads
   map.addLayer({id:'oroad-case',type:'line',source:'campus',filter:kind('oroad'),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#d2c9bc','line-width':['interpolate',['linear'],['zoom'],13,['case',['get','major'],3.5,2],19,['case',['get','major'],16,9]]}});
@@ -242,6 +247,7 @@ map.on('load',()=>{
   map.addLayer({id:'outline-line',type:'line',source:'campus',filter:kind('outline'),paint:{'line-color':'#6b1d12','line-width':1.5,'line-opacity':.5}});
   // no zooming out past a little more than the whole route
   const fitZ=map.cameraForBounds(BOUNDS,{padding:20});if(fitZ&&fitZ.zoom)map.setMinZoom(fitZ.zoom-0.5);
+  map.addLayer({id:'draft',type:'line',source:'draft',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#dc2626','line-width':5,'line-opacity':.85}});   // a road being added in the developer panel
   ready=true;rideFor=undefined;update();
 });
 map.on('error',e=>console.warn(e&&e.error));
@@ -340,6 +346,7 @@ function choosePlace(sn,key){stopGps();pickName=key?END_NAME[key]:label(sn);setM
 function pick(e){const m=toXY([e.lngLat.lng,e.lngLat.lat]),sn=snap(...m),p=P(sn.x,sn.y);
   if(Math.hypot(p.x-e.point.x,p.y-e.point.y)>46){toast('Tap closer to the cart route');return null;}return sn;}
 map.on('click',e=>{
+  if(devEdit){devTap(e);return;}
   if(devPlace){const d={A:STOPS.A,B:STOPS.B,[devPlace]:[+e.lngLat.lng.toFixed(6),+e.lngLat.lat.toFixed(6)]};
     try{localStorage.setItem('devStops',JSON.stringify(d));}catch(_){toast('Could not save the stop in this browser');return;}
     toast('Point '+devPlace+' placed, reloading',1200);devPlace=null;setTimeout(()=>location.reload(),900);return;}
@@ -408,12 +415,32 @@ startGps();
 
 // ---------- developer option: place Point A and Point B ----------
 const fmt=p=>p?p[1].toFixed(6)+', '+p[0].toFixed(6):'not set';
-function devShow(){$('devc').textContent='A '+fmt(STOPS.A)+'  \u00b7  B '+fmt(STOPS.B)+(DEV_STOPS?'  (placed)':'  (default)');
+function devShow(){$('devc').textContent='A '+fmt(STOPS.A)+'  \u00b7  B '+fmt(STOPS.B)+(DEV_STOPS?'  (placed)':'  (default)')+(DEV_EDITS?'  \u00b7  route edits: +'+DEV_ROUTE.add.length+' roads, \u2212'+DEV_ROUTE.remove.length+' pieces':'');
   $('devA').classList.toggle('on',devPlace==='A');$('devB').classList.toggle('on',devPlace==='B');}
 $('logo').onclick=()=>{$('dev').hidden=!$('dev').hidden;devPlace=null;devShow();};
 ['A','B'].forEach(k=>$('dev'+k).onclick=()=>{devPlace=devPlace===k?null:k;devShow();if(devPlace)toast('Tap the map where Point '+k+' should be',3000);});
-$('devR').onclick=()=>{try{localStorage.removeItem('devStops')}catch(_){}location.reload();};
-$('devX').onclick=()=>{$('dev').hidden=true;devPlace=null;};
+$('devR').onclick=()=>{try{localStorage.removeItem('devStops');localStorage.removeItem('devRoute')}catch(_){}location.reload();};
+$('devX').onclick=()=>{$('dev').hidden=true;devPlace=null;setEdit(null);};
+// route editing: "Add road" follows the real roads between your taps; "Remove road" takes a piece off the cart route
+let GA=null;   // every campus road and footpath, built on first use
+function roadGraph(){if(GA)return GA;GA={};const add=(a,b)=>{const ka=nk(a),kb=nk(b),d=Math.hypot((a[0]-b[0])*KX,(a[1]-b[1])*KY);(GA[ka]=GA[ka]||[]).push([kb,d]);(GA[kb]=GA[kb]||[]).push([ka,d]);};
+  CAMPUS.features.forEach(f=>{if(f.properties.kind!=='road'&&f.properties.kind!=='path')return;const g=f.geometry.coordinates;for(let i=1;i<g.length;i++)add(g[i-1],g[i]);});return GA;}
+const keyLL=k=>k.split(',').map(Number);
+function nearestRoadNode(ll){let b=null,bd=1e9;for(const k in roadGraph()){const q=keyLL(k),d=Math.hypot((q[0]-ll[0])*KX,(q[1]-ll[1])*KY);if(d<bd){bd=d;b=k}}return [b,bd];}
+function saveRoute(msg){try{localStorage.setItem('devRoute',JSON.stringify(DEV_ROUTE));}catch(_){toast('Could not save in this browser');return;}toast(msg+', reloading',1200);setTimeout(()=>location.reload(),900);}
+function setEdit(m){devEdit=m;draft=[];if(ready)map.getSource('draft').setData(EMPTY);$('devAdd').classList.toggle('on',m==='add');$('devDel').classList.toggle('on',m==='del');$('devSave').hidden=m!=='add';}
+function devTap(e){const ll=[e.lngLat.lng,e.lngLat.lat];
+  if(devEdit==='add'){const [k,d]=nearestRoadNode(ll);if(d>40){toast('Tap on a road or path');return;}
+    if(!draft.length)draft=[k];else{const p=path(draft[draft.length-1],k,null,roadGraph());if(!p){toast('No road joins those two taps');return;}draft=draft.concat(p.slice(1));}
+    map.getSource('draft').setData(draft.length>1?line(draft.map(keyLL)):EMPTY);return;}
+  if(devEdit==='del'){const b=nearestEdge(E0,...toXY(ll));if(!b){return;}const q=map.project(toLL(b.x,b.y));if(Math.hypot(q.x-e.point.x,q.y-e.point.y)>30){toast('Tap on the cart route');return;}
+    if([b.a,b.b].some(k=>!k.includes(','))){toast('That piece touches a stop; remove the piece next to it');return;}
+    const cut=ekey(b.a,b.b),{D}=dijkstra(A_NODE,k=>k===cut?1e9:1,B_NODE);   // would carts still get from A to B?
+    if(!(D[B_NODE]<1e8)){toast('Removing that piece would cut Main Stop off from 2nd Stop');return;}
+    DEV_ROUTE.remove.push([b.a,b.b]);saveRoute('Piece removed');}}
+$('devAdd').onclick=()=>{setEdit(devEdit==='add'?null:'add');if(devEdit)toast('Tap along the road, then Save road',3000);};
+$('devDel').onclick=()=>{setEdit(devEdit==='del'?null:'del');if(devEdit)toast('Tap a piece of the cart route to remove it',3000);};
+$('devSave').onclick=()=>{if(draft.length<2){toast('Tap at least two points on the road');return;}DEV_ROUTE.add.push(draft.map(keyLL));saveRoute('Road added');};
 
 // ---------- bottom sheet: drag the handle down (or tap it) to show only the countdown, up to show it all ----------
 {const sh=$('sheet'),g=$('grab');let y0=null;
