@@ -3,7 +3,9 @@ const React = require("react");
 const RDS = require("react-dom/server");
 const sharp = require("sharp");
 const fa = require("react-icons/fa");
-const { applyTheme } = require("/mnt/skills/public/pptx/scripts/apply_theme.js");
+// theme script from the pptx skill; set PPTX_SKILL to that skill folder if it is somewhere else
+const path = require("path");
+const { applyTheme } = require(path.join(process.env.PPTX_SKILL || "/mnt/skills/public/pptx", "scripts/apply_theme.js"));
 
 const HEX = {
   dk1: "1F2A2B", lt1: "FFFFFF", dk2: "0F3D3E", lt2: "EEF4F3",
@@ -393,8 +395,46 @@ async function icon(Comp, color) {
     if (i < 2) s.addImage({ data: I.arrow, x: x + 3.85, y: 3.3, w: 0.25, h: 0.25, objectName: "flow arrow " + i, altText: "then" });
   });
   card(s, 0.6, 5.6, 12.1, 0.85, C.accent6, "Constraint note");
-  txt(s, [{ text: "Why it fits: ", options: { bold: true, color: C.text2 } }, { text: "it answers our main How Might We, and needs no device fitted to the carts. For CP5 we'll test it as a paper prototype." }], { x: 0.95, y: 5.7, w: 11.4, h: 0.65, fontSize: 15, valign: "middle" });
+  txt(s, [{ text: "Why it fits: ", options: { bold: true, color: C.text2 } }, { text: "it answers our main How Might We, and needs no device fitted to the carts. We went on to build it as a working app: see the Prototype section." }], { x: 0.95, y: 5.7, w: 11.4, h: 0.65, fontSize: 15, valign: "middle" });
   s.addNotes("This is the idea students raised in interviews, and the one that won our scoring.");
+
+  // ---------- Prototype: the app ----------
+  pres.addSection({ title: "Prototype" });
+  s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Prototype" });
+  s.addText("LPU CartNet: our working prototype", { placeholder: "title" });
+  const shots = [
+    ["1-waiting", "See the carts coming", "Each empty cart heading to you, with its countdown and a dashed line along the road"],
+    ["2-destination", "Choose where you're going", "Ride time, and the stretch of road the cart will drive"],
+    ["3-riding", "Get on: the map follows", "When your cart reaches you, the map follows it and counts down to your stop"],
+    ["4-collapsed", "Swipe down for more map", "The panel shrinks to just the countdown"],
+  ];
+  shots.forEach((sh, i) => {
+    const x = 0.6 + i * 3.075, iw = 1.8, ih = iw * 844 / 390;
+    card(s, x, 1.45, 2.85, 5.3, C.background2, sh[1] + " card");
+    s.addImage({ path: path.join(__dirname, "screens", sh[0] + ".png"), x: x + (2.85 - iw) / 2, y: 1.6, w: iw, h: ih, objectName: sh[1] + " screenshot", altText: "App screenshot: " + sh[1] });
+    txt(s, (i + 1) + ". " + sh[1], { x: x + 0.15, y: 5.62, w: 2.55, h: 0.35, fontSize: 14, bold: true, color: C.text2 });
+    txt(s, sh[2], { x: x + 0.15, y: 5.98, w: 2.55, h: 0.72, fontSize: 12, color: C.text1 });
+  });
+  s.addNotes("Screens from the app at phone size. Cart positions are simulated from our stopwatch timings, not live tracking.");
+
+  // ---------- Prototype: how it works ----------
+  s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Prototype" });
+  s.addText("What the prototype is built from", { placeholder: "title" });
+  const parts = [
+    ["pin", "Real campus map", "3D campus from OpenStreetMap; the cart route is the one our team traced on it, from Main Stop to 2nd Stop"],
+    ["watch", "Our timing data", "Carts leave as often as our 73 stopwatch gaps say; most leave full, as we saw at the stops"],
+    ["mobile", "Your phone", "Live GPS shows where you are; or tap the map to pick your stop. Runs in a browser or as an Android app"],
+  ];
+  parts.forEach((f, i) => {
+    const x = 0.6 + i * 4.15;
+    card(s, x, 1.6, 3.8, 3.7, C.background2, f[1]);
+    iconCircle(s, f[0], x + 0.35, 1.9, 1.0, C.accent2, f[1]);
+    txt(s, f[1], { x: x + 0.35, y: 3.15, w: 3.1, h: 0.5, fontSize: 20, bold: true, color: C.text2 });
+    txt(s, f[2], { x: x + 0.35, y: 3.7, w: 3.1, h: 1.45, fontSize: 15 });
+  });
+  card(s, 0.6, 5.6, 12.1, 0.85, C.accent6, "Honesty note");
+  txt(s, [{ text: "Simulation, not live tracking: ", options: { bold: true, color: C.text2 } }, { text: "cart positions are generated from our timings, with no device on the carts. Cart speed (16.5 to 19.5 km/h) is an estimate." }], { x: 0.95, y: 5.7, w: 11.4, h: 0.65, fontSize: 15, valign: "middle" });
+  s.addNotes("No hardware on the carts, as the problem statement requires. The 3D map is adapted from the lpu-wayfinder project by Dushyant Pal, with permission.");
 
   // ---------- 13. Limits + next ----------
   pres.addSection({ title: "Next steps" });
@@ -410,8 +450,8 @@ async function icon(Comp, color) {
   txt(s, "Next steps", { x: 8.1, y: 2.0, w: 4.4, h: 0.55, fontSize: 20, bold: true, color: C.text2, valign: "middle" });
   const nxt = [
     ["CP4 Ideate: ", "team session for 30+ ideas, agree weights, score"],
-    ["CP5 Prototype: ", "paper screen showing “next cart in N min”"],
-    ["CP6 Test: ", "try it with students at Lovely Bakery and Education Park"],
+    ["CP5 Prototype: ", "built: LPU CartNet, a web and Android app"],
+    ["CP6 Test: ", "try the app with students at our stops, and compare its waits with new stopwatch timings"],
     ["Also: ", "try again to get the drivers' side"],
   ];
   txt(s, nxt.map((t, j) => [{ text: t[0], options: { bold: true } }, { text: t[1], options: { breakLine: j < nxt.length - 1 } }]).flat(), { x: 7.15, y: 2.95, w: 5.25, h: 3.2, fontSize: 17, paraSpaceAfter: 14 });
@@ -423,7 +463,7 @@ async function icon(Comp, color) {
   s.addText("Questions and feedback welcome", { placeholder: "body" });
   s.addImage({ data: I.van, x: 9.9, y: 2.2, w: 2.6, h: 2.6, objectName: "Shuttle icon", altText: "Campus shuttle" });
 
-  const out = "/mnt/user-data/outputs/P05_Waiting_for_the_Shuttle.pptx";
+  const out = path.join(__dirname, "P05_Waiting_for_the_Shuttle.pptx");
   await pres.writeFile({ fileName: out });
   await applyTheme(out, THEME);
   console.log("wrote", out);

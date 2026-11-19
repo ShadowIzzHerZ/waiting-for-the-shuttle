@@ -126,7 +126,8 @@ spawnT.A=nextGap()*Math.random();spawnT.B=nextGap()*Math.random();
 
 // ---------- snapping to roads ----------
 function snap(x,y){const b=nearestEdge(E,x,y);return b&&{a:b.a,b:b.b,t:b.t,x:b.x,y:b.y,d:b.d};}
-function label(sn){let b=null,bd=90;PLACES.forEach(([x,y,n])=>{const d=Math.hypot(x-sn.x,y-sn.y);if(d<bd){bd=d;b=n}});return b||'the cart road';}
+function label(sn){for(const [k,n] of [[A_NODE,END_NAME.A],[B_NODE,END_NAME.B]])if(k&&Math.hypot(N[k][0]-sn.x,N[k][1]-sn.y)<15)return n;   // a stop is named by its stop name
+  let b=null,bd=90;PLACES.forEach(([x,y,n])=>{const d=Math.hypot(x-sn.x,y-sn.y);if(d<bd){bd=d;b=n}});return b||'the cart road';}
 // distance along route r (from its start) where point sn lies, at or ahead of s0
 function routeDist(r,sn,s0){
   for(let i=0;i<r.nodes.length-1;i++){
@@ -163,10 +164,10 @@ const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%
 const medGap=GAPS.slice().sort((a,b)=>a-b)[GAPS.length>>1];
 function update(){
   if(riding){const c=riding,end=c.rideEnd,left=Math.max(0,(end-c.s)/c.v);   // on a cart: count down to where you get off
-    $('next').classList.remove('none','noride');put('chip','On Cart '+cid(c));put('via','to '+c.rideTo);put('cdl','to go');
+    $('sheet').classList.add('riding');$('next').classList.remove('none','noride');put('chip','On Cart '+cid(c));put('via','to '+c.rideTo);put('cdl','to go');
     put('cd',mmss(left));put('ns',follow?'The map is following your cart':'Tap the location button to follow your cart');
     put('rt',mmss(left));put('rd',c.rideTo);if(ready)map.getSource('coming').setData(EMPTY);return;}
-  put('cdl','min wait');
+  put('cdl','min wait');$('sheet').classList.remove('riding');
   if(!me)return;
   const list=evaluate(),good=list.filter(c=>c.ok);
   best=good[0]||null;
@@ -234,7 +235,7 @@ const P=(x,y)=>map.project(toLL(x,y));
 // ---------- drawing the overlay: stops, you, carts ----------
 function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function chip(t,x,y,bg,fg,ln){
-  ctx.font='600 11px system-ui,sans-serif';const w=ctx.measureText(t).width+14;x=Math.max(w/2+4,Math.min(W-w/2-4,x));y=Math.max(14,Math.min(H-34,y));   // H-34: the bottom sheet overlaps the map's last 16 px
+  ctx.font='600 11px system-ui,sans-serif';const w=ctx.measureText(t).width+14;x=Math.max(w/2+4,Math.min(W-w/2-(y<370?72:4),x));y=Math.max(14,Math.min(H-34,y));   // keep clear of the buttons on the right   // H-34: the bottom sheet overlaps the map's last 16 px
   rr(x-w/2,y-10,w,20,4);ctx.fillStyle=bg;ctx.fill();if(ln){ctx.strokeStyle=ln;ctx.lineWidth=1;ctx.stroke();}
   ctx.fillStyle=fg;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y+.5);}
 const onScreen=p=>p.x>-40&&p.y>-40&&p.x<W+40&&p.y<H+40;
