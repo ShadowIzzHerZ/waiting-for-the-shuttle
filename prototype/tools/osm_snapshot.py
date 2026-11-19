@@ -5,7 +5,7 @@
 import json, subprocess
 
 API = "https://api.openstreetmap.org/api/0.6"
-BBOX = "75.688,31.238,75.724,31.264"
+BBOX = "75.686,31.236,75.724,31.270"  # campus plus about 1 km, for the faded roads around it
 REL = 21599790  # OSM relation for the LPU campus
 KEEP = ("building", "highway", "leisure", "landuse", "natural", "amenity")  # a way is kept if it has one of these
 TAGS = ("building", "highway", "leisure", "landuse", "natural", "amenity", "sport", "name", "ref", "height", "building:levels")
@@ -51,8 +51,13 @@ for w in ways.values():
     t = w.get("tags") or {}
     if not any(t.get(k) for k in KEEP): continue
     g = geom(w)
-    if len(g) != len(w["nodes"]): continue  # cut by the box edge
-    out.append({"type": "way", "id": w["id"], "tags": pick(t), "geometry": g})
+    if len(g) == len(w["nodes"]): out.append({"type": "way", "id": w["id"], "tags": pick(t), "geometry": g}); continue
+    if not t.get("highway"): continue  # an area cut by the box edge: skip it
+    run = []  # a road cut by the box edge: keep each stretch that is inside the box
+    for i in w["nodes"] + [None]:
+        if i in nodes: run.append([round(nodes[i]["lon"], 7), round(nodes[i]["lat"], 7)]); continue
+        if len(run) > 1: out.append({"type": "way", "id": w["id"], "tags": pick(t), "geometry": run})
+        run = []
 # multipolygon buildings and areas: each outer ring becomes its own closed way (inner courtyards are left filled)
 seen = {REL}
 for e in rels:
