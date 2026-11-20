@@ -189,19 +189,27 @@ async function icon(Comp, color) {
   s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Primary research" });
   kick(s, "03 · Primary research");
   s.addText("Waiting takes almost as long as riding", { placeholder: "title" });
-  s.addChart(pres.charts.BAR, [
-    { name: "Wait for cart", labels: ["Ride 1", "Ride 2", "Ride 3", "Ride 4", "Ride 5"], values: [secs(4, 47), secs(9, 50), secs(5, 56), secs(6, 34), secs(4, 59)] },
-    { name: "Time in cart", labels: ["Ride 1", "Ride 2", "Ride 3", "Ride 4", "Ride 5"], values: [secs(7, 39), secs(6, 44), secs(6, 1), secs(6, 55), secs(5, 12)] },
-  ], Object.assign({
-    x: 0.6, y: 1.5, w: 5.9, h: 5.2, barDir: "col", barGapWidthPct: 60,
-    chartColors: [HEX.accent1, HEX.accent2],
-    showValue: true, dataLabelPosition: "outEnd", dataLabelFormatCode: "m:ss", dataLabelFontSize: 11, dataLabelColor: HEX.dk1,
-    valAxisLabelFormatCode: "m:ss", valAxisLabelFontSize: 11, valAxisLabelColor: HEX.accent5, valAxisMinVal: 0,
-    catAxisLabelFontSize: 12, catAxisLabelColor: HEX.accent5,
-    valGridLine: { color: "E3E8E7", size: 0.5 }, catGridLine: { style: "none" },
-    showLegend: true, legendPos: "t", legendFontSize: 12, legendColor: HEX.dk1,
-    showTitle: false, objectName: "Ride timings chart", altText: "Wait vs time in cart for 5 rides",
-  }, chartText));
+  {   // waits and rides as columns drawn with shapes (shows the same in every app)
+    const waits = [287, 590, 356, 394, 299], rides = [459, 404, 361, 415, 312], X0 = 1.15, base = 6.3, top = 2.0, max = 600;
+    const Y = v => base - (base - top) * v / max, mm = v => Math.floor(v / 60) + ":" + String(v % 60).padStart(2, "0");
+    [0, 120, 240, 360, 480, 600].forEach(v => {
+      rect(s, X0, Y(v), 5.3, 0.01, "EADDE0", "Grid " + v);
+      txt(s, mm(v), { x: 0.5, y: Y(v) - 0.12, w: 0.55, h: 0.24, fontSize: 10, color: C.accent5, align: "right" });
+    });
+    waits.forEach((w, i) => {
+      const gx = X0 + 0.12 + i * 1.06;
+      [[w, HEX.accent1], [rides[i], HEX.accent2]].forEach(([v, col], k) => {
+        const x = gx + k * 0.41;
+        rect(s, x, Y(v), 0.38, base - Y(v), col, "Ride " + (i + 1) + (k ? " in cart" : " wait"));
+        txt(s, mm(v), { x: x - 0.1, y: Y(v) - 0.27, w: 0.58, h: 0.25, fontSize: 10, bold: true, color: C.text1, align: "center" });
+      });
+      txt(s, "Ride " + (i + 1), { x: gx - 0.1, y: base + 0.05, w: 1.0, h: 0.28, fontSize: 12, color: C.accent5, align: "center" });
+    });
+    rect(s, 1.9, 1.62, 0.16, 0.16, HEX.accent1, "Legend wait");
+    txt(s, "Wait for a cart", { x: 2.1, y: 1.55, w: 1.6, h: 0.3, fontSize: 12 });
+    rect(s, 3.8, 1.62, 0.16, 0.16, HEX.accent2, "Legend ride");
+    txt(s, "Time in the cart", { x: 4.0, y: 1.55, w: 1.8, h: 0.3, fontSize: 12 });
+  }
   phone(s, "2-destination", 6.75, 1.6, 4.9, "the app shows the wait and the ride time for your stop");
   card(s, 9.2, 1.6, 3.5, 2.3, C.background2, "Median wait");
   txt(s, "5:56", { x: 9.55, y: 1.7, w: 3, h: 0.8, fontFace: THEME.headFontFace, fontSize: 46, bold: true, color: C.accent3 });
@@ -231,19 +239,24 @@ async function icon(Comp, color) {
   kick(s, "03 · Primary research");
   s.addText("How long you wait depends on the stop", { placeholder: "title" });
   const stopLabels = ["Lovely Bakery 12:00", "Lovely Bakery 12:08", "Education Park 12:51", "Education Park ~1:10", "Pharmacy Park 3:28", "Pharmacy Park 4:03"];
-  s.addChart(pres.charts.BAR, [
-    { name: "Typical wait", labels: stopLabels, values: [secs(1, 5), secs(1, 3), secs(3, 36), secs(2, 0), secs(1, 21), secs(2, 20)] },
-    { name: "Longest gap between carts", labels: stopLabels, values: [secs(2, 14), secs(4, 15), secs(10, 49), secs(5, 8), secs(3, 57), secs(7, 41)] },
-  ], Object.assign({
-    x: 0.6, y: 1.5, w: 6.3, h: 4.9, barDir: "bar", barGapWidthPct: 50,
-    chartColors: [HEX.accent2, HEX.accent1],
-    showValue: true, dataLabelPosition: "outEnd", dataLabelFormatCode: "m:ss", dataLabelFontSize: 11, dataLabelColor: HEX.dk1,
-    valAxisLabelFormatCode: "m:ss", valAxisLabelFontSize: 11, valAxisLabelColor: HEX.accent5, valAxisMinVal: 0,
-    catAxisLabelFontSize: 12, catAxisLabelColor: HEX.dk1, catAxisOrientation: "maxMin",
-    valGridLine: { color: "E3E8E7", size: 0.5 }, catGridLine: { style: "none" },
-    showLegend: true, legendPos: "t", legendFontSize: 12, legendColor: HEX.dk1,
-    objectName: "Stop gaps chart", altText: "Typical wait and longest gap at three stops",
-  }, chartText));
+  {   // typical wait and longest gap per session as bars drawn with shapes
+    const rows = [["Lovely Bakery 12:00", 65, 134], ["Lovely Bakery 12:08", 63, 255], ["Education Park 12:51", 216, 649], ["Education Park ~1:10", 120, 308], ["Pharmacy Park 3:28", 81, 237], ["Pharmacy Park 4:03", 140, 461]];
+    const X0 = 2.55, W = 3.65, max = 660, mm = v => Math.floor(v / 60) + ":" + String(v % 60).padStart(2, "0");
+    rect(s, 2.6, 1.62, 0.16, 0.16, HEX.accent2, "Legend typical");
+    txt(s, "Typical wait", { x: 2.8, y: 1.55, w: 1.4, h: 0.3, fontSize: 12 });
+    rect(s, 4.3, 1.62, 0.16, 0.16, HEX.accent1, "Legend longest");
+    txt(s, "Longest gap between carts", { x: 4.5, y: 1.55, w: 2.4, h: 0.3, fontSize: 12 });
+    rows.forEach(([lab, typ, lng], i) => {
+      const y = 2.05 + i * 0.73;
+      if (i % 2 === 0) rect(s, 0.6, y - 0.06, 6.55, 0.7, "FDF3F5", lab + " band");
+      txt(s, lab, { x: 0.6, y, w: 1.9, h: 0.58, fontSize: 11, color: C.text1, align: "right", valign: "middle" });
+      [[typ, HEX.accent2], [lng, HEX.accent1]].forEach(([v, col], k) => {
+        const bw = W * v / max, yy = y + 0.04 + k * 0.27;
+        rect(s, X0, yy, bw, 0.23, col, lab + (k ? " longest" : " typical"));
+        txt(s, mm(v), { x: X0 + bw + 0.05, y: yy - 0.02, w: 0.6, h: 0.27, fontSize: 10, bold: k === 1 && v === 649, color: C.text1 });
+      });
+    });
+  }
   phone(s, "1-waiting", 7.1, 1.6, 4.8, "two carts coming to the same stop at different times");
   card(s, 9.6, 1.6, 3.1, 2.25, C.background2, "Longest gap callout");
   txt(s, "10:49", { x: 9.85, y: 1.68, w: 2.7, h: 0.7, fontFace: THEME.headFontFace, fontSize: 40, bold: true, color: C.accent3 });
